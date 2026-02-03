@@ -1,0 +1,3734 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>D&D Character Sheet</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* =========================================
+         1. VARIABLES & THEMES
+         ========================================= */
+      :root {
+        /* Default Warm Theme (Base) */
+        --parchment: #f4e8d8;
+        --parchment-dark: #e8dcc5;
+        --ink: #2a1810;
+        --ink-light: #5a4838;
+        --gold: #d4a574;
+        --gold-dark: #b8895f;
+        --red: #8b2e2e;
+        --red-dark: #6b1e1e;
+        --shadow: rgba(42, 24, 16, 0.1);
+        --shadow-heavy: rgba(42, 24, 16, 0.3);
+      }
+
+      /* Class-Specific Theme Overrides */
+      body.theme-artificer {
+        --ink: #1f2e2e;
+        --ink-light: #466d6d;
+        --gold: #b87333;
+        --gold-dark: #8a5220;
+        --red: #008080;
+        --red-dark: #004d4d;
+      }
+      body.theme-barbarian {
+        --ink: #2b1b17;
+        --ink-light: #5e4b35;
+        --gold: #a0522d;
+        --gold-dark: #6e2c00;
+        --red: #c0392b;
+        --red-dark: #7b241c;
+      }
+      body.theme-bard {
+        --ink: #1a0f1f;
+        --ink-light: #4a2c52;
+        --gold: #d4af37;
+        --gold-dark: #aa8c2c;
+        --red: #8e44ad;
+        --red-dark: #5b2c6f;
+      }
+      body.theme-cleric {
+        --ink: #2c3e50;
+        --ink-light: #5d6d7e;
+        --gold: #f1c40f;
+        --gold-dark: #b7950b;
+        --red: #7f8c8d;
+        --red-dark: #455a64;
+      }
+      body.theme-druid {
+        --ink: #1e2815;
+        --ink-light: #3e4f2b;
+        --gold: #8b4513;
+        --gold-dark: #5e2f0d;
+        --red: #2d6a4f;
+        --red-dark: #1b4332;
+      }
+      body.theme-fighter {
+        --ink: #18191a;
+        --ink-light: #424949;
+        --gold: #717d7e;
+        --gold-dark: #4d5656;
+        --red: #922b21;
+        --red-dark: #641e16;
+      }
+      body.theme-monk {
+        --ink: #152d32;
+        --ink-light: #456f75;
+        --gold: #5dade2;
+        --gold-dark: #2e86c1;
+        --red: #27ae60;
+        --red-dark: #145a32;
+      }
+      body.theme-paladin {
+        --ink: #17202a;
+        --ink-light: #455a64;
+        --gold: #f39c12;
+        --gold-dark: #b9770e;
+        --red: #283747;
+        --red-dark: #151f28;
+      }
+      body.theme-ranger {
+        --ink: #1b2618;
+        --ink-light: #405238;
+        --gold: #6e5532;
+        --gold-dark: #47351f;
+        --red: #355e3b;
+        --red-dark: #1e3622;
+      }
+      body.theme-rogue {
+        --ink: #000000;
+        --ink-light: #333333;
+        --gold: #566573;
+        --gold-dark: #2c3e50;
+        --red: #212f3c;
+        --red-dark: #17202a;
+      }
+      body.theme-sorcerer {
+        --ink: #2b0e0e;
+        --ink-light: #6e2c2c;
+        --gold: #d35400;
+        --gold-dark: #a04000;
+        --red: #c0392b;
+        --red-dark: #922b21;
+      }
+      body.theme-warlock {
+        --ink: #120517;
+        --ink-light: #3f184f;
+        --gold: #5b2c6f;
+        --gold-dark: #4a235a;
+        --red: #4a148c;
+        --red-dark: #310d5e;
+      }
+      body.theme-wizard {
+        --ink: #0e1826;
+        --ink-light: #2c4463;
+        --gold: #bdc3c7;
+        --gold-dark: #7f8c8d;
+        --red: #1f3a93;
+        --red-dark: #152763;
+      }
+
+      /* =========================================
+         2. RESET & BASE STYLES
+         ========================================= */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      body {
+        font-family: "Crimson Text", serif;
+        background: linear-gradient(135deg, #1a1410 0%, #2a2420 100%);
+        color: var(--ink);
+        min-height: 100vh;
+        padding: 16px;
+        touch-action: pan-y;
+        overflow-x: hidden;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: "Cinzel", serif;
+      }
+
+      /* Fix number inputs */
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+
+      /* =========================================
+         3. LAYOUT UTILITIES
+         ========================================= */
+      .character-sheet {
+        max-width: 900px;
+        margin: 0 auto;
+        background: var(--parchment);
+        border-radius: 8px;
+        box-shadow:
+          0 8px 32px var(--shadow-heavy),
+          inset 0 0 200px rgba(212, 165, 116, 0.1);
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+      }
+      /* Paper texture overlay */
+      .character-sheet::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(42, 24, 16, 0.02) 2px,
+          rgba(42, 24, 16, 0.02) 4px
+        );
+        pointer-events: none;
+        opacity: 0.5;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .grid-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      @media (max-width: 600px) {
+        .grid-3,
+        .grid-4 {
+          grid-template-columns: 1fr 1fr;
+        }
+        .attunement-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .vertical-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* =========================================
+         4. HEADER & TEXT FIELDS
+         ========================================= */
+      .header {
+        text-align: center;
+        margin-bottom: 32px;
+        border-bottom: 2px solid var(--gold);
+        padding-bottom: 20px;
+        position: relative;
+      }
+      .header::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 8px;
+        background: var(--red);
+        border-radius: 4px;
+      }
+      .header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--red-dark);
+        letter-spacing: 2px;
+        margin-bottom: 8px;
+        text-shadow: 2px 2px 4px var(--shadow);
+      }
+      .subtitle {
+        font-size: 1.1rem;
+        color: var(--ink-light);
+        font-style: italic;
+        letter-spacing: 1px;
+      }
+
+      .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--red);
+        margin: 24px 0 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--gold);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .section-title::before {
+        content: "◆";
+        color: var(--gold-dark);
+        font-size: 0.9rem;
+      }
+
+      .field {
+        position: relative;
+        background: white;
+        border: 2px solid var(--gold);
+        border-radius: 6px;
+        padding: 12px;
+        box-shadow: 0 2px 8px var(--shadow);
+        transition: all 0.3s ease;
+      }
+      .field:focus-within {
+        border-color: var(--red);
+        box-shadow: 0 4px 16px var(--shadow-heavy);
+        transform: translateY(-2px);
+      }
+
+      .field-label {
+        font-family: "Cinzel", serif;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--ink-light);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 6px;
+        display: block;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        border: none;
+        background: transparent;
+        font-family: "Crimson Text", serif;
+        font-size: 1.1rem;
+        color: var(--ink);
+        outline: none;
+        padding: 4px 0;
+      }
+      input[type="number"] {
+        font-size: 1.3rem;
+        font-weight: 600;
+        text-align: center;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 80px;
+        line-height: 1.6;
+      }
+
+      /* =========================================
+         5. STAT BLOCKS & SKILLS
+         ========================================= */
+      .stat-block {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .stat-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .stat {
+        background: linear-gradient(
+          135deg,
+          var(--red-dark) 0%,
+          var(--red) 100%
+        );
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+        box-shadow: 0 4px 12px var(--shadow-heavy);
+        position: relative;
+        overflow: hidden;
+      }
+      .stat::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(
+          circle,
+          rgba(255, 255, 255, 0.1) 0%,
+          transparent 70%
+        );
+        transform: rotate(45deg);
+      }
+      .stat-name {
+        font-family: "Cinzel", serif;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--gold);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+      }
+      .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        position: relative;
+      }
+      .stat-modifier input {
+        font-size: 1.1rem;
+        color: var(--parchment);
+        text-align: center;
+      }
+      .stat input.stat-value {
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .stat-skills {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .skill-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        background: white;
+        border: 1px solid var(--gold);
+        border-radius: 6px;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s ease;
+      }
+      .skill-item:active {
+        background: var(--parchment-dark);
+        transform: scale(0.98);
+      }
+
+      .skill-checkbox {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--gold-dark);
+        border-radius: 4px;
+        position: relative;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .skill-checkbox.checked {
+        background: var(--red);
+        border-color: var(--red-dark);
+      }
+      .checkmark {
+        display: none;
+        color: white;
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+      .skill-checkbox.checked .checkmark {
+        display: block;
+      }
+
+      .skill-name {
+        font-size: 1rem;
+        color: var(--ink);
+        flex-grow: 1;
+      }
+      .skill-mod {
+        font-weight: 600;
+        color: var(--red-dark);
+        font-size: 1rem;
+        min-width: 35px;
+        text-align: right;
+      }
+
+      .skill-info-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border: 1px solid var(--gold-dark);
+        border-radius: 50%;
+        color: var(--gold-dark);
+        font-size: 0.7rem;
+        font-family: serif;
+        font-weight: bold;
+        margin-left: auto;
+        cursor: help;
+        background: rgba(255, 255, 255, 0.5);
+        z-index: 10;
+      }
+      .skill-info-btn:hover {
+        background: var(--red);
+        color: white;
+        border-color: var(--red-dark);
+      }
+
+      /* =========================================
+         6. COMBAT, HP & DEATH SAVES
+         ========================================= */
+      .hp-bar-container {
+        width: 100%;
+        height: 24px;
+        background: #e0e0e0;
+        border: 2px solid var(--gold-dark);
+        border-radius: 12px;
+        margin-bottom: 16px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+      .hp-fill-current {
+        height: 100%;
+        background: linear-gradient(90deg, #8b2e2e, #a33636);
+        width: 0%;
+        transition: width 0.3s ease;
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 1;
+      }
+      .hp-fill-temp {
+        height: 100%;
+        background: linear-gradient(90deg, #d4a574, #e8dcc5);
+        width: 0%;
+        transition: width 0.3s ease;
+        position: absolute;
+        top: 0;
+        z-index: 2;
+        opacity: 0.9;
+        border-left: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      .hp-overlay-text {
+        position: absolute;
+        width: 100%;
+        text-align: center;
+        line-height: 24px;
+        font-family: "Cinzel", serif;
+        font-weight: bold;
+        font-size: 0.8rem;
+        color: white;
+        z-index: 3;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+        pointer-events: none;
+      }
+
+      .combat-stats,
+      .hp-death-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .hp-death-grid {
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      }
+
+      .combat-stat,
+      .death-saves-box {
+        background: white;
+        border: 3px solid var(--gold-dark);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+        box-shadow: 0 2px 8px var(--shadow);
+      }
+      .combat-stat-label,
+      .death-saves-label {
+        font-family: "Cinzel", serif;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--ink-light);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+      }
+      .combat-stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--red-dark);
+      }
+      .combat-stat input {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--red-dark);
+        text-align: center;
+      }
+
+      .hp-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+      }
+      .hp-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 1px solid var(--gold-dark);
+        background: var(--parchment-dark);
+        color: var(--ink);
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        transition: all 0.2s;
+        user-select: none;
+      }
+      .hp-btn:hover {
+        background: var(--red);
+        color: white;
+        border-color: var(--red-dark);
+      }
+
+      .death-saves-box {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        height: 100%;
+      }
+      .death-save-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        margin-bottom: 8px;
+      }
+      .save-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--ink);
+        min-width: 80px;
+      }
+      .death-save-checkboxes {
+        display: flex;
+        gap: 8px;
+      }
+      .death-save-check {
+        width: 28px;
+        height: 28px;
+        border: 2px solid var(--gold-dark);
+        border-radius: 50%;
+        cursor: pointer;
+        position: relative;
+      }
+      .death-save-check.checked {
+        background: var(--red);
+        border-color: var(--red-dark);
+      }
+      .death-save-check.checked::after {
+        content: "✓";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      /* =========================================
+         7. TABS & FEATURES
+         ========================================= */
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .tab {
+        flex: 1;
+        min-width: 120px;
+        padding: 12px 20px;
+        background: var(--parchment-dark);
+        border: 2px solid var(--gold);
+        border-radius: 6px 6px 0 0;
+        font-family: "Cinzel", serif;
+        font-weight: 600;
+        color: var(--ink-light);
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.3s ease;
+      }
+      .tab.active {
+        background: white;
+        border-bottom-color: white;
+        color: var(--red-dark);
+        transform: translateY(2px);
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+
+      .feature-box {
+        background: white;
+        border: 1px solid var(--gold);
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 12px;
+        position: relative;
+        transition: all 0.2s;
+      }
+      .feature-box:hover {
+        box-shadow: 0 2px 8px var(--shadow);
+      }
+      .feature-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 8px;
+        border-bottom: 1px dashed var(--gold-dark);
+        padding-bottom: 8px;
+      }
+      .feature-title-input {
+        font-family: "Cinzel", serif;
+        font-weight: 700;
+        color: var(--red-dark);
+        font-size: 1rem;
+        border: none;
+        background: transparent;
+        width: 85%;
+      }
+
+      /* =========================================
+         8. BUTTONS & ACTIONS
+         ========================================= */
+      .btn {
+        background: linear-gradient(
+          135deg,
+          var(--red) 0%,
+          var(--red-dark) 100%
+        );
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-family: "Cinzel", serif;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px var(--shadow-heavy);
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+      }
+      .btn-secondary {
+        background: linear-gradient(135deg, #5a4838 0%, #2a1810 100%);
+      }
+      .btn-danger {
+        background: linear-gradient(135deg, #a31c1c 0%, #631111 100%);
+      }
+      .btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 2px 6px var(--shadow-heavy);
+      }
+
+      .add-feature-btn {
+        width: 100%;
+        padding: 8px;
+        background: var(--parchment-dark);
+        border: 2px dashed var(--gold);
+        color: var(--ink-light);
+        font-family: "Cinzel", serif;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s;
+      }
+      .add-feature-btn:hover {
+        background: white;
+        color: var(--red);
+        border-color: var(--red);
+      }
+
+      .delete-feature-btn {
+        background: none;
+        border: none;
+        color: var(--ink-light);
+        font-size: 1.2rem;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0 4px;
+      }
+      .delete-feature-btn:hover {
+        color: var(--red);
+      }
+
+      .mini-btn {
+        background: var(--red);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        width: 20px;
+        height: 20px;
+        line-height: 1;
+        cursor: pointer;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .sheet-actions {
+        margin-top: 40px;
+        border-top: 2px solid var(--gold);
+        padding-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: center;
+      }
+
+      /* =========================================
+         9. SPELLS & INVENTORY
+         ========================================= */
+      /* Spell Tables */
+      .spell-list-header,
+      .spell-row {
+        display: grid;
+        grid-template-columns: 40px 2fr 1fr 1fr 30px;
+        gap: 8px;
+        align-items: center;
+      }
+      .spell-list-header {
+        font-family: "Cinzel", serif;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--red-dark);
+        text-transform: uppercase;
+        padding: 0 8px;
+        margin-bottom: 6px;
+      }
+      .spell-row {
+        background: white;
+        border: 1px solid var(--gold);
+        border-radius: 4px;
+        padding: 6px;
+        margin-bottom: 8px;
+      }
+      .spell-input {
+        border-bottom: 1px solid transparent;
+        font-size: 0.95rem;
+      }
+      .spell-input:focus {
+        border-bottom: 1px solid var(--red);
+      }
+
+      /* Spell Slots */
+      .slot-level-container {
+        background: white;
+        border: 1px solid var(--gold);
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 12px;
+      }
+      .slot-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        border-bottom: 1px dashed var(--gold-dark);
+        padding-bottom: 4px;
+      }
+      .slot-btn-group {
+        display: flex;
+        gap: 4px;
+      }
+      .slot-btn-small {
+        background: var(--parchment-dark);
+        border: 1px solid var(--gold);
+        color: var(--ink);
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .spell-slot-tracker {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .spell-slot {
+        width: 32px;
+        height: 32px;
+        border: 2px solid var(--gold-dark);
+        border-radius: 50%;
+        background: white;
+        cursor: pointer;
+        position: relative;
+      }
+      .spell-slot.used {
+        background: var(--red);
+        border-color: var(--red-dark);
+      }
+      .spell-slot.used::after {
+        content: "×";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 1.3rem;
+        font-weight: 700;
+      }
+
+      /* Inventory */
+      .inventory-header,
+      .inventory-item {
+        display: grid;
+        grid-template-columns: 30px 40px 2fr 1fr 1fr 30px;
+        gap: 8px;
+        align-items: center;
+      }
+      .inventory-header {
+        padding: 0 12px;
+        margin-bottom: 8px;
+        font-family: "Cinzel", serif;
+        font-weight: 600;
+        color: var(--red-dark);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+      }
+      .inventory-item {
+        background: white;
+        border: 1px solid var(--gold);
+        border-radius: 4px;
+        padding: 8px;
+        transition: all 0.2s ease;
+      }
+      .inventory-item.dragging {
+        opacity: 0.5;
+        background: var(--parchment);
+        border: 2px dashed var(--red);
+      }
+      .drag-handle {
+        cursor: grab;
+        color: var(--gold-dark);
+        font-size: 1.2rem;
+        display: flex;
+        justify-content: center;
+        user-select: none;
+      }
+      .drag-handle:active {
+        cursor: grabbing;
+        color: var(--red);
+      }
+      .equipped-checkbox {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--red);
+        cursor: pointer;
+        margin: 0 auto;
+      }
+      .inventory-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .total-weight-box {
+        background: var(--parchment-dark);
+        border: 2px solid var(--gold);
+        padding: 12px;
+        text-align: right;
+        border-radius: 6px;
+        font-family: "Cinzel", serif;
+        font-weight: 700;
+        color: var(--ink);
+        margin-bottom: 24px;
+      }
+
+      /* Attunement */
+      .attunement-section {
+        margin-top: 24px;
+        border-top: 2px solid var(--gold);
+        padding-top: 16px;
+      }
+      .attunement-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 12px;
+      }
+      .attunement-slot {
+        background: white;
+        border: 2px solid var(--gold-dark);
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        position: relative;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
+      }
+      .attunement-slot::before {
+        content: "Attuned";
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--parchment);
+        padding: 0 8px;
+        font-family: "Cinzel", serif;
+        font-size: 0.7rem;
+        color: var(--gold-dark);
+      }
+
+      /* =========================================
+         10. MODALS
+         ========================================= */
+      .info-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 2000;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.2s ease-out;
+      }
+      .info-modal-content {
+        background: var(--parchment);
+        padding: 24px;
+        border-radius: 8px;
+        border: 2px solid var(--gold);
+        box-shadow: 0 4px 20px black;
+        width: 90%;
+        max-width: 400px;
+        position: relative;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      .info-modal-title {
+        font-family: "Cinzel", serif;
+        color: var(--red);
+        font-size: 1.2rem;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--gold);
+      }
+      .info-modal-text {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: var(--ink);
+      }
+      .close-modal-btn {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--ink-light);
+        cursor: pointer;
+      }
+
+      /* Currency Table */
+      .currency-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      .currency-table th,
+      .currency-table td {
+        border: 1px solid var(--gold);
+        padding: 8px;
+        text-align: center;
+        font-family: "Crimson Text", serif;
+      }
+      .currency-table th {
+        background: var(--parchment-dark);
+        font-family: "Cinzel", serif;
+        font-size: 0.8rem;
+        color: var(--red-dark);
+      }
+
+      /* Alignment Grid */
+      .alignment-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .alignment-option {
+        background: var(--parchment-dark);
+        border: 1px solid var(--gold);
+        padding: 15px 5px;
+        text-align: center;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 4px;
+        font-family: "Cinzel", serif;
+        font-size: 0.9rem;
+      }
+      .alignment-option:hover {
+        background: white;
+        border-color: var(--red);
+        color: var(--red-dark);
+      }
+
+      /* Ability Score Modal */
+      .score-modal-tabs {
+        display: flex;
+        margin-bottom: 20px;
+        border-bottom: 2px solid var(--gold);
+      }
+      .score-tab {
+        flex: 1;
+        padding: 10px;
+        text-align: center;
+        background: var(--parchment-dark);
+        cursor: pointer;
+        font-family: "Cinzel", serif;
+        font-weight: 600;
+        transition: all 0.2s;
+        border: 1px solid var(--gold);
+        border-bottom: none;
+      }
+      .score-tab.active {
+        background: var(--parchment);
+        color: var(--red-dark);
+        font-weight: 700;
+        border-top: 3px solid var(--red);
+      }
+      .score-method-container {
+        display: none;
+      }
+      .score-method-container.active {
+        display: block;
+      }
+      .point-buy-header {
+        text-align: center;
+        margin-bottom: 15px;
+        font-family: "Cinzel", serif;
+        font-size: 1.2rem;
+        color: var(--red-dark);
+      }
+      .pb-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        padding: 8px;
+        background: white;
+        border: 1px solid var(--gold);
+        border-radius: 4px;
+      }
+      .pb-btn {
+        width: 30px;
+        height: 30px;
+        background: var(--parchment-dark);
+        border: 1px solid var(--gold-dark);
+        border-radius: 50%;
+        cursor: pointer;
+        font-weight: bold;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .pb-btn:hover {
+        background: var(--red);
+        color: white;
+      }
+      .pb-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #ccc;
+        color: #666;
+      }
+      .sa-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .sa-item {
+        background: white;
+        padding: 10px;
+        border: 1px solid var(--gold);
+        border-radius: 4px;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .character-sheet > * {
+        animation: fadeIn 0.6s ease backwards;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="character-sheet">
+      <div class="header">
+        <h1>Character Sheet</h1>
+        <div class="subtitle">D&D 2024 5e</div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="field">
+          <label class="field-label">Character Name</label>
+          <input type="text" id="charName" placeholder="Enter name..." />
+        </div>
+        <div class="field">
+          <label class="field-label">Class</label>
+          <input type="text" id="charClass" placeholder="e.g., Fighter" />
+        </div>
+        <div class="field">
+          <label class="field-label">Level</label>
+          <input type="number" id="level" value="1" min="1" max="20" />
+        </div>
+        <div class="field">
+          <label class="field-label">Subclass</label>
+          <input type="text" id="charSubclass" placeholder="e.g., Champion" />
+        </div>
+      </div>
+
+      <div class="grid grid-4">
+        <div class="field">
+          <label class="field-label">Race</label>
+          <input type="text" id="race" placeholder="Race" />
+        </div>
+        <div class="field">
+          <label class="field-label">Background</label>
+          <input type="text" id="background" placeholder="Background" />
+        </div>
+        <div class="field">
+          <label class="field-label">Alignment</label>
+          <input
+            type="text"
+            id="alignment"
+            placeholder="Click to set"
+            readonly
+            style="cursor: pointer"
+          />
+        </div>
+        <div class="field">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 6px;
+            "
+          >
+            <label class="field-label" style="margin-bottom: 0"
+              >Experience</label
+            >
+            <button type="button" id="addExpBtn" class="mini-btn">+</button>
+          </div>
+          <input type="number" id="experience" value="0" />
+        </div>
+      </div>
+
+      <h2 class="section-title">Ability Scores, Saves & Skills</h2>
+      <div style="text-align: center; margin-bottom: 20px">
+        <button
+          class="btn btn-secondary"
+          onclick="openScoreModal()"
+          style="font-size: 0.9rem; padding: 8px 16px"
+        >
+          Set Up Ability Scores
+        </button>
+      </div>
+
+      <div class="stat-block">
+        <div class="stat-card">
+          <div class="stat">
+            <div class="stat-name">Strength</div>
+            <input
+              type="number"
+              class="stat-value"
+              id="str"
+              value="10"
+              min="1"
+              max="30"
+            />
+            <div class="stat-modifier">
+              <input
+                type="text"
+                id="strMod"
+                value="+0"
+                readonly
+                style="width: 50px"
+              />
+            </div>
+          </div>
+          <div class="stat-skills">
+            <div class="skill-item" onclick="toggleSave('str')">
+              <div class="skill-checkbox" id="saveCheck_str">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Saving Throw</div>
+              <div class="skill-mod" id="saveMod_str">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('athletics')">
+              <div class="skill-checkbox" id="skillCheck_athletics">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Athletics</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('athletics', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_athletics">+0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat">
+            <div class="stat-name">Dexterity</div>
+            <input
+              type="number"
+              class="stat-value"
+              id="dex"
+              value="10"
+              min="1"
+              max="30"
+            />
+            <div class="stat-modifier">
+              <input
+                type="text"
+                id="dexMod"
+                value="+0"
+                readonly
+                style="width: 50px"
+              />
+            </div>
+          </div>
+          <div class="stat-skills">
+            <div class="skill-item" onclick="toggleSave('dex')">
+              <div class="skill-checkbox" id="saveCheck_dex">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Saving Throw</div>
+              <div class="skill-mod" id="saveMod_dex">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('acrobatics')">
+              <div class="skill-checkbox" id="skillCheck_acrobatics">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Acrobatics</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('acrobatics', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_acrobatics">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('sleight_of_hand')">
+              <div class="skill-checkbox" id="skillCheck_sleight_of_hand">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Sleight of Hand</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('sleight_of_hand', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_sleight_of_hand">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('stealth')">
+              <div class="skill-checkbox" id="skillCheck_stealth">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Stealth</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('stealth', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_stealth">+0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat">
+            <div class="stat-name">Constitution</div>
+            <input
+              type="number"
+              class="stat-value"
+              id="con"
+              value="10"
+              min="1"
+              max="30"
+            />
+            <div class="stat-modifier">
+              <input
+                type="text"
+                id="conMod"
+                value="+0"
+                readonly
+                style="width: 50px"
+              />
+            </div>
+          </div>
+          <div class="stat-skills">
+            <div class="skill-item" onclick="toggleSave('con')">
+              <div class="skill-checkbox" id="saveCheck_con">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Saving Throw</div>
+              <div class="skill-mod" id="saveMod_con">+0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat">
+            <div class="stat-name">Intelligence</div>
+            <input
+              type="number"
+              class="stat-value"
+              id="int"
+              value="10"
+              min="1"
+              max="30"
+            />
+            <div class="stat-modifier">
+              <input
+                type="text"
+                id="intMod"
+                value="+0"
+                readonly
+                style="width: 50px"
+              />
+            </div>
+          </div>
+          <div class="stat-skills">
+            <div class="skill-item" onclick="toggleSave('int')">
+              <div class="skill-checkbox" id="saveCheck_int">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Saving Throw</div>
+              <div class="skill-mod" id="saveMod_int">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('arcana')">
+              <div class="skill-checkbox" id="skillCheck_arcana">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Arcana</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('arcana', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_arcana">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('history')">
+              <div class="skill-checkbox" id="skillCheck_history">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">History</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('history', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_history">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('investigation')">
+              <div class="skill-checkbox" id="skillCheck_investigation">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Investigation</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('investigation', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_investigation">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('nature')">
+              <div class="skill-checkbox" id="skillCheck_nature">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Nature</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('nature', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_nature">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('religion')">
+              <div class="skill-checkbox" id="skillCheck_religion">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Religion</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('religion', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_religion">+0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat">
+            <div class="stat-name">Wisdom</div>
+            <input
+              type="number"
+              class="stat-value"
+              id="wis"
+              value="10"
+              min="1"
+              max="30"
+            />
+            <div class="stat-modifier">
+              <input
+                type="text"
+                id="wisMod"
+                value="+0"
+                readonly
+                style="width: 50px"
+              />
+            </div>
+          </div>
+          <div class="stat-skills">
+            <div class="skill-item" onclick="toggleSave('wis')">
+              <div class="skill-checkbox" id="saveCheck_wis">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Saving Throw</div>
+              <div class="skill-mod" id="saveMod_wis">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('animal_handling')">
+              <div class="skill-checkbox" id="skillCheck_animal_handling">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Animal Handling</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('animal_handling', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_animal_handling">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('insight')">
+              <div class="skill-checkbox" id="skillCheck_insight">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Insight</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('insight', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_insight">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('medicine')">
+              <div class="skill-checkbox" id="skillCheck_medicine">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Medicine</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('medicine', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_medicine">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('perception')">
+              <div class="skill-checkbox" id="skillCheck_perception">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Perception</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('perception', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_perception">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('survival')">
+              <div class="skill-checkbox" id="skillCheck_survival">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Survival</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('survival', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_survival">+0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat">
+            <div class="stat-name">Charisma</div>
+            <input
+              type="number"
+              class="stat-value"
+              id="cha"
+              value="10"
+              min="1"
+              max="30"
+            />
+            <div class="stat-modifier">
+              <input
+                type="text"
+                id="chaMod"
+                value="+0"
+                readonly
+                style="width: 50px"
+              />
+            </div>
+          </div>
+          <div class="stat-skills">
+            <div class="skill-item" onclick="toggleSave('cha')">
+              <div class="skill-checkbox" id="saveCheck_cha">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Saving Throw</div>
+              <div class="skill-mod" id="saveMod_cha">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('deception')">
+              <div class="skill-checkbox" id="skillCheck_deception">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Deception</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('deception', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_deception">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('intimidation')">
+              <div class="skill-checkbox" id="skillCheck_intimidation">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Intimidation</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('intimidation', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_intimidation">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('performance')">
+              <div class="skill-checkbox" id="skillCheck_performance">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Performance</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('performance', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_performance">+0</div>
+            </div>
+            <div class="skill-item" onclick="toggleSkill('persuasion')">
+              <div class="skill-checkbox" id="skillCheck_persuasion">
+                <div class="checkmark">✓</div>
+              </div>
+              <div class="skill-name">Persuasion</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('persuasion', event)"
+                >?</span
+              >
+              <div class="skill-mod" id="skillMod_persuasion">+0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Hit Points & Death Saves</h2>
+      <div class="hp-bar-container">
+        <div class="hp-fill-current" id="hpBarCurrent"></div>
+        <div class="hp-fill-temp" id="hpBarTemp"></div>
+        <div class="hp-overlay-text">
+          <span id="hpTextDisplay">0</span> /
+          <span id="maxHpTextDisplay">0</span>
+        </div>
+      </div>
+      <div class="hp-death-grid">
+        <div class="combat-stat">
+          <div class="combat-stat-label">Current HP</div>
+          <div class="hp-controls">
+            <button class="hp-btn" onclick="adjustHP(-1)">-</button>
+            <input
+              type="number"
+              class="combat-stat-value"
+              id="hp"
+              value="10"
+              style="width: 60px"
+            />
+            <button class="hp-btn" onclick="adjustHP(1)">+</button>
+          </div>
+        </div>
+        <div class="combat-stat">
+          <div class="combat-stat-label">Max HP</div>
+          <input
+            type="number"
+            class="combat-stat-value"
+            id="maxHp"
+            value="10"
+          />
+        </div>
+        <div class="combat-stat">
+          <div class="combat-stat-label">Temp HP</div>
+          <div class="hp-controls">
+            <button class="hp-btn" onclick="adjustTempHP(-1)">-</button>
+            <input
+              type="number"
+              class="combat-stat-value"
+              id="tempHp"
+              value="0"
+              style="width: 60px"
+            />
+            <button class="hp-btn" onclick="adjustTempHP(1)">+</button>
+          </div>
+        </div>
+        <div class="combat-stat">
+          <div class="combat-stat-label">Hit Dice</div>
+          <input
+            type="text"
+            class="combat-stat-value"
+            id="hitDice"
+            placeholder="1d8"
+            style="font-size: 1.5rem"
+          />
+        </div>
+        <div class="death-saves-box">
+          <div class="death-saves-label">Death Saves</div>
+          <div class="death-saves-content">
+            <div class="death-save-row">
+              <span class="save-label">Successes:</span>
+              <div class="death-save-checkboxes">
+                <div
+                  class="death-save-check"
+                  onclick="toggleDeathSave('success', 0)"
+                  id="deathSuccess0"
+                ></div>
+                <div
+                  class="death-save-check"
+                  onclick="toggleDeathSave('success', 1)"
+                  id="deathSuccess1"
+                ></div>
+                <div
+                  class="death-save-check"
+                  onclick="toggleDeathSave('success', 2)"
+                  id="deathSuccess2"
+                ></div>
+              </div>
+            </div>
+            <div class="death-save-row">
+              <span class="save-label">Failures:</span>
+              <div class="death-save-checkboxes">
+                <div
+                  class="death-save-check"
+                  onclick="toggleDeathSave('failure', 0)"
+                  id="deathFailure0"
+                ></div>
+                <div
+                  class="death-save-check"
+                  onclick="toggleDeathSave('failure', 1)"
+                  id="deathFailure1"
+                ></div>
+                <div
+                  class="death-save-check"
+                  onclick="toggleDeathSave('failure', 2)"
+                  id="deathFailure2"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Combat Stats</h2>
+      <div class="combat-stats">
+        <div class="combat-stat">
+          <div class="combat-stat-label">Armor Class</div>
+          <input
+            type="number"
+            id="baseAC"
+            value="10"
+            oninput="calculateTotalAC()"
+          />
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 6px;
+              margin-top: 8px;
+            "
+          >
+            <input
+              type="checkbox"
+              id="shieldEquipped"
+              onchange="calculateTotalAC()"
+              style="width: 14px; height: 14px; cursor: pointer"
+            />
+            <label
+              for="shieldEquipped"
+              style="
+                font-size: 0.7rem;
+                font-family: &quot;Cinzel&quot;, serif;
+                color: var(--ink-light);
+                cursor: pointer;
+              "
+              >Shield (+2)</label
+            >
+          </div>
+        </div>
+        <div class="combat-stat">
+          <div class="combat-stat-label">Initiative</div>
+          <input
+            type="text"
+            class="combat-stat-value"
+            id="initiative"
+            value="+0"
+            readonly
+          />
+        </div>
+        <div class="combat-stat">
+          <div class="combat-stat-label">Speed</div>
+          <input
+            type="number"
+            class="combat-stat-value"
+            id="speed"
+            value="30"
+          />
+        </div>
+        <div class="combat-stat">
+          <div class="combat-stat-label">Proficiency Bonus</div>
+          <input
+            type="number"
+            class="combat-stat-value"
+            id="profBonus"
+            value="2"
+          />
+        </div>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="field">
+          <label class="field-label">Armor Training</label>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 10px;
+              margin-top: 12px;
+              padding-left: 8px;
+            "
+          >
+            <div style="display: flex; align-items: center; gap: 8px">
+              <input
+                type="checkbox"
+                id="armorLight"
+                style="width: 16px; height: 16px; cursor: pointer"
+              />
+              <span>Light</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <input
+                type="checkbox"
+                id="armorMedium"
+                style="width: 16px; height: 16px; cursor: pointer"
+              />
+              <span>Medium</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <input
+                type="checkbox"
+                id="armorHeavy"
+                style="width: 16px; height: 16px; cursor: pointer"
+              />
+              <span>Heavy</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <input
+                type="checkbox"
+                id="armorShield"
+                style="width: 16px; height: 16px; cursor: pointer"
+              />
+              <span>Shield</span>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">Weapon Proficiency</label>
+          <textarea
+            id="weaponProfs"
+            placeholder="e.g. Simple, Martial, Longsword..."
+            style="min-height: 60px"
+          ></textarea>
+        </div>
+        <div class="field">
+          <label class="field-label">Tool Proficiency</label>
+          <textarea
+            id="toolProfs"
+            placeholder="e.g. Thieves' Tools, Lute..."
+            style="min-height: 60px"
+          ></textarea>
+        </div>
+      </div>
+
+      <h2 class="section-title">Weapon Attacks</h2>
+      <div class="grid">
+        <div id="weapon-list" class="vertical-list"></div>
+        <button class="add-feature-btn" onclick="addWeapon()">
+          + Add Weapon
+        </button>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('class-features')">
+          Class Features
+        </div>
+        <div class="tab" onclick="switchTab('race-features')">
+          Race Features
+        </div>
+        <div class="tab" onclick="switchTab('background-features')">
+          Background Features
+        </div>
+        <div class="tab" onclick="switchTab('feats')">Feats</div>
+        <div class="tab" onclick="switchTab('equipment')">
+          Equipment & Inventory
+        </div>
+        <div class="tab" onclick="switchTab('spells')">Spells</div>
+        <div class="tab" onclick="switchTab('notes')">Notes</div>
+      </div>
+
+      <div class="tab-content active" id="class-features">
+        <div id="classFeaturesContainer"></div>
+        <button
+          class="add-feature-btn"
+          onclick="addFeatureItem('classFeaturesContainer')"
+        >
+          + Add Feature
+        </button>
+      </div>
+
+      <div class="tab-content" id="race-features">
+        <div id="raceFeaturesContainer"></div>
+        <button
+          class="add-feature-btn"
+          onclick="addFeatureItem('raceFeaturesContainer')"
+        >
+          + Add Feature
+        </button>
+      </div>
+
+      <div class="tab-content" id="background-features">
+        <div id="backgroundFeaturesContainer"></div>
+        <button
+          class="add-feature-btn"
+          onclick="addFeatureItem('backgroundFeaturesContainer')"
+        >
+          + Add Feature
+        </button>
+      </div>
+
+      <div class="tab-content" id="feats">
+        <div id="featsContainer"></div>
+        <button
+          class="add-feature-btn"
+          onclick="addFeatureItem('featsContainer')"
+        >
+          + Add Feat
+        </button>
+      </div>
+
+      <div class="tab-content" id="equipment">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+          "
+        >
+          <h3
+            style="
+              font-family: &quot;Cinzel&quot;, serif;
+              font-size: 1rem;
+              color: var(--red-dark);
+              margin: 0;
+            "
+          >
+            Currency
+          </h3>
+          <button
+            onclick="openCurrencyModal()"
+            style="
+              background: none;
+              border: 1px solid var(--gold);
+              border-radius: 4px;
+              padding: 2px 8px;
+              font-size: 0.8rem;
+              cursor: pointer;
+              color: var(--ink-light);
+            "
+          >
+            Exchange Rates
+          </button>
+        </div>
+        <div class="grid grid-3" style="margin-bottom: 16px">
+          <div class="field">
+            <label class="field-label">Copper</label
+            ><input type="number" id="cp" value="0" />
+          </div>
+          <div class="field">
+            <label class="field-label">Silver</label
+            ><input type="number" id="sp" value="0" />
+          </div>
+          <div class="field">
+            <label class="field-label">Electrum</label
+            ><input type="number" id="ep" value="0" />
+          </div>
+          <div class="field">
+            <label class="field-label">Gold</label
+            ><input type="number" id="gp" value="0" />
+          </div>
+          <div class="field">
+            <label class="field-label">Platinum</label
+            ><input type="number" id="pp" value="0" />
+          </div>
+        </div>
+
+        <h3 class="section-title">Equipped Gear</h3>
+        <div class="inventory-header">
+          <span></span
+          ><span style="font-size: 0.7rem; text-align: center">Equip</span>
+          <span>Item Name</span><span style="text-align: center">Qty</span>
+          <span style="text-align: center">Lbs</span><span></span>
+        </div>
+        <div
+          id="equippedList"
+          class="inventory-list"
+          style="
+            min-height: 60px;
+            border: 2px dashed var(--gold-dark);
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 24px;
+            background: rgba(255, 255, 255, 0.3);
+          "
+        ></div>
+
+        <h3 class="section-title">Backpack / Inventory</h3>
+        <div class="inventory-header">
+          <span></span
+          ><span style="font-size: 0.7rem; text-align: center">Equip</span>
+          <span>Item Name</span><span style="text-align: center">Qty</span>
+          <span style="text-align: center">Lbs</span><span></span>
+        </div>
+        <div
+          id="inventoryList"
+          class="inventory-list"
+          style="min-height: 60px"
+        ></div>
+        <button class="add-feature-btn" onclick="addInventoryItem()">
+          + Add Item
+        </button>
+
+        <div class="total-weight-box">
+          Total Weight: <span id="totalWeightVal">0</span> /
+          <span id="maxWeightVal">150</span> lbs
+        </div>
+
+        <div class="attunement-section">
+          <h3 class="section-title">Magical Attunement (Max 3)</h3>
+          <div class="attunement-grid">
+            <div class="attunement-slot">
+              <input
+                type="text"
+                id="attune1"
+                placeholder="Empty Slot"
+                style="text-align: center; font-weight: bold"
+              />
+            </div>
+            <div class="attunement-slot">
+              <input
+                type="text"
+                id="attune2"
+                placeholder="Empty Slot"
+                style="text-align: center; font-weight: bold"
+              />
+            </div>
+            <div class="attunement-slot">
+              <input
+                type="text"
+                id="attune3"
+                placeholder="Empty Slot"
+                style="text-align: center; font-weight: bold"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="spells">
+        <div class="grid grid-2" style="margin-bottom: 16px">
+          <div class="field">
+            <label class="field-label">Spellcasting Ability</label>
+            <select id="spellAbility">
+              <option value="int">Intelligence</option>
+              <option value="wis">Wisdom</option>
+              <option value="cha">Charisma</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label">Spell Save DC</label
+            ><input type="text" id="spellDC" value="13" readonly />
+          </div>
+          <div class="field">
+            <label class="field-label">Spell Modifier</label
+            ><input type="number" id="spellAttackMod" placeholder="+0" />
+          </div>
+          <div class="field">
+            <label class="field-label">Spell Attack Bonus</label
+            ><input type="number" id="spellAttackBonus" placeholder="+0" />
+          </div>
+        </div>
+
+        <h3 class="section-title">Spell Slots</h3>
+        <div id="spellSlotsContainer"></div>
+        <button class="add-feature-btn" onclick="addNewSpellLevel()">
+          + Add Spell Level
+        </button>
+        <div style="margin-top: 24px"></div>
+
+        <h3 class="section-title">Cantrips (Level 0)</h3>
+        <div class="spell-list-header">
+          <span>Lvl</span><span>Name</span><span>Time</span><span>Range</span
+          ><span></span>
+        </div>
+        <div id="cantripList"></div>
+        <button class="add-feature-btn" onclick="addSpellRow('cantripList', 0)">
+          + Add Cantrip
+        </button>
+
+        <h3 class="section-title" style="margin-top: 24px">
+          Known / Prepared Spells
+        </h3>
+        <div class="spell-list-header">
+          <span>Lvl</span><span>Name</span><span>Time</span><span>Range</span
+          ><span></span>
+        </div>
+        <div id="spellList"></div>
+        <button class="add-feature-btn" onclick="addSpellRow('spellList', 1)">
+          + Add Spell
+        </button>
+      </div>
+
+      <div class="tab-content" id="notes">
+        <div class="vertical-list">
+          <div class="field">
+            <label class="field-label">Languages Spoken</label
+            ><textarea
+              id="languages"
+              placeholder="Common, Elvish..."
+              style="min-height: 60px"
+            ></textarea>
+          </div>
+          <div class="field">
+            <label class="field-label">Personality Traits</label
+            ><textarea
+              id="personality"
+              placeholder="Describe your character..."
+            ></textarea>
+          </div>
+          <div class="field">
+            <label class="field-label">Ideals</label
+            ><textarea id="ideals" placeholder="Beliefs..."></textarea>
+          </div>
+          <div class="field">
+            <label class="field-label">Bonds</label
+            ><textarea id="bonds" placeholder="Connections..."></textarea>
+          </div>
+          <div class="field">
+            <label class="field-label">Flaws</label
+            ><textarea id="flaws" placeholder="Weaknesses..."></textarea>
+          </div>
+          <div class="field">
+            <label class="field-label">Additional Notes</label
+            ><textarea id="notes" placeholder="Other info..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-actions">
+        <button class="btn btn-secondary" onclick="openThemeModal()">
+          Select Theme
+        </button>
+        <button class="btn btn-secondary" onclick="downloadJSON()">
+          Save JSON
+        </button>
+        <button
+          class="btn btn-secondary"
+          onclick="document.getElementById('fileInput').click()"
+        >
+          Load JSON
+        </button>
+        <input
+          type="file"
+          id="fileInput"
+          accept=".json"
+          style="display: none"
+          onchange="loadJSON(this)"
+        />
+        <button class="btn btn-danger" onclick="resetSheet()">
+          Reset Sheet
+        </button>
+      </div>
+    </div>
+
+    <div
+      id="infoModal"
+      class="info-modal-overlay"
+      onclick="closeInfoModal(event)"
+    >
+      <div class="info-modal-content">
+        <button
+          class="close-modal-btn"
+          onclick="document.getElementById('infoModal').style.display = 'none'"
+        >
+          &times;
+        </button>
+        <h3 id="infoModalTitle" class="info-modal-title">Title</h3>
+        <div id="infoModalText" class="info-modal-text">Text goes here...</div>
+      </div>
+    </div>
+
+    <div id="scoreModal" class="info-modal-overlay">
+      <div class="info-modal-content" style="max-width: 500px">
+        <button class="close-modal-btn" onclick="closeScoreModal()">
+          &times;
+        </button>
+        <h3 class="info-modal-title" style="text-align: center">
+          Ability Score Generator
+        </h3>
+        <div class="score-modal-tabs">
+          <div class="score-tab active" onclick="switchScoreTab('standard')">
+            Standard Array
+          </div>
+          <div class="score-tab" onclick="switchScoreTab('pointbuy')">
+            Point Buy
+          </div>
+        </div>
+
+        <div id="tab-standard" class="score-method-container active">
+          <p
+            style="
+              text-align: center;
+              font-style: italic;
+              margin-bottom: 15px;
+              font-size: 0.9rem;
+            "
+          >
+            Assign each number once: 15, 14, 13, 12, 10, 8
+          </p>
+          <div class="sa-grid">
+            <div class="sa-item">
+              <label class="field-label">Strength</label
+              ><select
+                id="sa_str"
+                class="sa-select"
+                onchange="updateStandardArrayOptions()"
+              >
+                <option value="">—</option>
+                <option value="15">15</option>
+                <option value="14">14</option>
+                <option value="13">13</option>
+                <option value="12">12</option>
+                <option value="10">10</option>
+                <option value="8">8</option>
+              </select>
+            </div>
+            <div class="sa-item">
+              <label class="field-label">Dexterity</label
+              ><select
+                id="sa_dex"
+                class="sa-select"
+                onchange="updateStandardArrayOptions()"
+              >
+                <option value="">—</option>
+                <option value="15">15</option>
+                <option value="14">14</option>
+                <option value="13">13</option>
+                <option value="12">12</option>
+                <option value="10">10</option>
+                <option value="8">8</option>
+              </select>
+            </div>
+            <div class="sa-item">
+              <label class="field-label">Constitution</label
+              ><select
+                id="sa_con"
+                class="sa-select"
+                onchange="updateStandardArrayOptions()"
+              >
+                <option value="">—</option>
+                <option value="15">15</option>
+                <option value="14">14</option>
+                <option value="13">13</option>
+                <option value="12">12</option>
+                <option value="10">10</option>
+                <option value="8">8</option>
+              </select>
+            </div>
+            <div class="sa-item">
+              <label class="field-label">Intelligence</label
+              ><select
+                id="sa_int"
+                class="sa-select"
+                onchange="updateStandardArrayOptions()"
+              >
+                <option value="">—</option>
+                <option value="15">15</option>
+                <option value="14">14</option>
+                <option value="13">13</option>
+                <option value="12">12</option>
+                <option value="10">10</option>
+                <option value="8">8</option>
+              </select>
+            </div>
+            <div class="sa-item">
+              <label class="field-label">Wisdom</label
+              ><select
+                id="sa_wis"
+                class="sa-select"
+                onchange="updateStandardArrayOptions()"
+              >
+                <option value="">—</option>
+                <option value="15">15</option>
+                <option value="14">14</option>
+                <option value="13">13</option>
+                <option value="12">12</option>
+                <option value="10">10</option>
+                <option value="8">8</option>
+              </select>
+            </div>
+            <div class="sa-item">
+              <label class="field-label">Charisma</label
+              ><select
+                id="sa_cha"
+                class="sa-select"
+                onchange="updateStandardArrayOptions()"
+              >
+                <option value="">—</option>
+                <option value="15">15</option>
+                <option value="14">14</option>
+                <option value="13">13</option>
+                <option value="12">12</option>
+                <option value="10">10</option>
+                <option value="8">8</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top: 20px; text-align: center">
+            <button class="btn" onclick="applyStandardArray()">
+              Apply Standard Array
+            </button>
+          </div>
+        </div>
+
+        <div id="tab-pointbuy" class="score-method-container">
+          <div class="point-buy-header">
+            Remaining Points:
+            <span id="pb-remaining" style="font-weight: bold; font-size: 1.4rem"
+              >27</span
+            >
+            / 27
+          </div>
+          <div id="pb-rows-container"></div>
+          <div style="margin-top: 20px; text-align: center">
+            <button class="btn" onclick="applyPointBuy()">
+              Apply Point Buy
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="currencyModal"
+      class="info-modal-overlay"
+      onclick="closeCurrencyModal(event)"
+    >
+      <div class="info-modal-content">
+        <button
+          class="close-modal-btn"
+          onclick="
+            document.getElementById('currencyModal').style.display = 'none'
+          "
+        >
+          &times;
+        </button>
+        <h3 class="info-modal-title">Currency Exchange</h3>
+        <div class="info-modal-text">
+          <table class="currency-table">
+            <thead>
+              <tr>
+                <th>Currency</th>
+                <th>Value (Gold)</th>
+                <th>Exchange</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Copper (cp)</strong></td>
+                <td>1/100 gp</td>
+                <td>10 cp = 1 sp</td>
+              </tr>
+              <tr>
+                <td><strong>Silver (sp)</strong></td>
+                <td>1/10 gp</td>
+                <td>10 sp = 1 gp</td>
+              </tr>
+              <tr>
+                <td><strong>Electrum (ep)</strong></td>
+                <td>1/2 gp</td>
+                <td>2 ep = 1 gp</td>
+              </tr>
+              <tr>
+                <td><strong>Gold (gp)</strong></td>
+                <td>1 gp</td>
+                <td>1 gp = 1 gp</td>
+              </tr>
+              <tr>
+                <td><strong>Platinum (pp)</strong></td>
+                <td>10 gp</td>
+                <td>1 pp = 10 gp</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="expModal" class="info-modal-overlay">
+      <div
+        class="info-modal-content"
+        style="max-width: 300px; text-align: center"
+      >
+        <h3 class="info-modal-title">Add Experience</h3>
+        <input
+          type="number"
+          id="expToAdd"
+          placeholder="Amount to add..."
+          style="
+            background: white;
+            border: 1px solid var(--gold);
+            padding: 8px;
+            margin-bottom: 16px;
+            text-align: center;
+            width: 100%;
+          "
+        />
+        <div style="display: flex; gap: 10px; justify-content: center">
+          <button id="confirmExp" class="btn" style="padding: 8px 16px">
+            Add
+          </button>
+          <button
+            id="cancelExp"
+            class="btn btn-secondary"
+            style="padding: 8px 16px"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="themeModal"
+      class="info-modal-overlay"
+      onclick="closeThemeModal(event)"
+    >
+      <div class="info-modal-content" style="max-width: 600px">
+        <button
+          class="close-modal-btn"
+          onclick="document.getElementById('themeModal').style.display = 'none'"
+        >
+          &times;
+        </button>
+        <h3 class="info-modal-title" style="text-align: center">
+          Select Class Theme
+        </h3>
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+          "
+        >
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('')"
+            style="border: 1px solid var(--ink)"
+          >
+            Default
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-artificer')"
+            style="background: #008080"
+          >
+            Artificer
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-barbarian')"
+            style="background: #c0392b"
+          >
+            Barbarian
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-bard')"
+            style="background: #8e44ad"
+          >
+            Bard
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-cleric')"
+            style="background: #7f8c8d"
+          >
+            Cleric
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-druid')"
+            style="background: #2d6a4f"
+          >
+            Druid
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-fighter')"
+            style="background: #922b21"
+          >
+            Fighter
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-monk')"
+            style="background: #27ae60"
+          >
+            Monk
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-paladin')"
+            style="background: #283747"
+          >
+            Paladin
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-ranger')"
+            style="background: #355e3b"
+          >
+            Ranger
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-rogue')"
+            style="background: #212f3c"
+          >
+            Rogue
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-sorcerer')"
+            style="background: #d35400"
+          >
+            Sorcerer
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-warlock')"
+            style="background: #4a148c"
+          >
+            Warlock
+          </button>
+          <button
+            class="btn btn-secondary"
+            onclick="setTheme('theme-wizard')"
+            style="background: #1f3a93"
+          >
+            Wizard
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="alignModal" class="info-modal-overlay">
+      <div
+        class="info-modal-content"
+        style="max-width: 340px; text-align: center"
+      >
+        <h3 class="info-modal-title">Select Alignment</h3>
+        <div class="alignment-grid">
+          <div class="alignment-option" onclick="setAlignment('Lawful Good')">
+            Lawful Good
+          </div>
+          <div class="alignment-option" onclick="setAlignment('Neutral Good')">
+            Neutral Good
+          </div>
+          <div class="alignment-option" onclick="setAlignment('Chaotic Good')">
+            Chaotic Good
+          </div>
+          <div
+            class="alignment-option"
+            onclick="setAlignment('Lawful Neutral')"
+          >
+            Lawful Neutral
+          </div>
+          <div class="alignment-option" onclick="setAlignment('True Neutral')">
+            True Neutral
+          </div>
+          <div
+            class="alignment-option"
+            onclick="setAlignment('Chaotic Neutral')"
+          >
+            Chaotic Neutral
+          </div>
+          <div class="alignment-option" onclick="setAlignment('Lawful Evil')">
+            Lawful Evil
+          </div>
+          <div class="alignment-option" onclick="setAlignment('Neutral Evil')">
+            Neutral Evil
+          </div>
+          <div class="alignment-option" onclick="setAlignment('Chaotic Evil')">
+            Chaotic Evil
+          </div>
+        </div>
+        <button id="cancelAlign" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+
+    <script>
+      /* =========================================
+         1. CONSTANTS & DATA
+         ========================================= */
+      const abilities = ["str", "dex", "con", "int", "wis", "cha"];
+
+      const skillsMap = {
+        athletics: "str",
+        acrobatics: "dex",
+        sleight_of_hand: "dex",
+        stealth: "dex",
+        arcana: "int",
+        history: "int",
+        investigation: "int",
+        nature: "int",
+        religion: "int",
+        animal_handling: "wis",
+        insight: "wis",
+        medicine: "wis",
+        perception: "wis",
+        survival: "wis",
+        deception: "cha",
+        intimidation: "cha",
+        performance: "cha",
+        persuasion: "cha",
+      };
+
+      const skillDescriptions = {
+        athletics:
+          "Covers difficult situations you encounter while climbing, jumping, or swimming.",
+        acrobatics:
+          "Covers your attempt to stay on your feet in a tricky situation (ice, tightrope, etc).",
+        sleight_of_hand:
+          "Checks manual trickery, such as planting something on someone else.",
+        stealth: "Covers your ability to conceal yourself from enemies.",
+        arcana:
+          "Measures your ability to recall lore about spells, magic items, and planes.",
+        history:
+          "Measures your ability to recall lore about historical events.",
+        investigation:
+          "Looks around for clues and makes deductions based on them.",
+        nature:
+          "Measures your ability to recall lore about terrain, plants, and animals.",
+        religion:
+          "Measures your ability to recall lore about deities and rites.",
+        animal_handling:
+          "Checks your ability to calm down a domesticated animal.",
+        insight:
+          "Decides whether you can determine the true intentions of a creature.",
+        medicine:
+          "Allows you to try to stabilize a dying companion or diagnose an illness.",
+        perception:
+          "Lets you spot, hear, or otherwise detect the presence of something.",
+        survival:
+          "Allows you to follow tracks, hunt wild game, and predict weather.",
+        deception: "Determines whether you can convincingly hide the truth.",
+        intimidation: "Allows you to influence others through overt threats.",
+        performance: "Determines how well you can delight an audience.",
+        persuasion:
+          "Attempts to influence someone with tact and social graces.",
+      };
+
+      const xpTable = [
+        { xp: 0, lvl: 1, prof: 2 },
+        { xp: 300, lvl: 2, prof: 2 },
+        { xp: 900, lvl: 3, prof: 2 },
+        { xp: 2700, lvl: 4, prof: 2 },
+        { xp: 6500, lvl: 5, prof: 3 },
+        { xp: 14000, lvl: 6, prof: 3 },
+        { xp: 23000, lvl: 7, prof: 3 },
+        { xp: 34000, lvl: 8, prof: 3 },
+        { xp: 48000, lvl: 9, prof: 4 },
+        { xp: 64000, lvl: 10, prof: 4 },
+        { xp: 85000, lvl: 11, prof: 4 },
+        { xp: 100000, lvl: 12, prof: 4 },
+        { xp: 120000, lvl: 13, prof: 5 },
+        { xp: 140000, lvl: 14, prof: 5 },
+        { xp: 165000, lvl: 15, prof: 5 },
+        { xp: 195000, lvl: 16, prof: 5 },
+        { xp: 225000, lvl: 17, prof: 6 },
+        { xp: 265000, lvl: 18, prof: 6 },
+        { xp: 305000, lvl: 19, prof: 6 },
+        { xp: 355000, lvl: 20, prof: 6 },
+      ];
+
+      /* =========================================
+         2. STATE MANAGEMENT
+         ========================================= */
+      const skillProficiency = {};
+      const saveProficiency = {};
+      const deathSaves = {
+        successes: [false, false, false],
+        failures: [false, false, false],
+      };
+
+      // Spell Slot Data
+      let spellSlotsData = [
+        { level: 1, total: 4, used: 0 },
+        { level: 2, total: 3, used: 0 },
+        { level: 3, total: 2, used: 0 },
+      ];
+
+      // Point Buy Logic Data
+      let pbScores = { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 };
+      const pbCosts = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
+      const maxPoints = 27;
+
+      /* =========================================
+         3. CORE CALCULATION LOGIC
+         ========================================= */
+      function calcMod(score) {
+        return Math.floor((score - 10) / 2);
+      }
+      function formatMod(mod) {
+        return mod >= 0 ? `+${mod}` : `${mod}`;
+      }
+
+      // Update ability modifiers, saves, skills, combat stats, spell DC
+      window.updateModifiers = function () {
+        const profBonus =
+          parseInt(document.getElementById("profBonus").value) || 0;
+
+        abilities.forEach((ability) => {
+          const score = parseInt(document.getElementById(ability).value) || 10;
+          const mod = calcMod(score);
+          document.getElementById(`${ability}Mod`).value = formatMod(mod);
+
+          // Update Saving Throws
+          const isSaveProf = saveProficiency[ability] || false;
+          const saveTotal = mod + (isSaveProf ? profBonus : 0);
+          const saveEl = document.getElementById(`saveMod_${ability}`);
+          if (saveEl) saveEl.textContent = formatMod(saveTotal);
+        });
+
+        // Update Skills
+        Object.keys(skillsMap).forEach((skillName) => {
+          const ability = skillsMap[skillName];
+          const abilityScore =
+            parseInt(document.getElementById(ability).value) || 10;
+          const abilityMod = calcMod(abilityScore);
+          const isProf = skillProficiency[skillName] || false;
+          const total = abilityMod + (isProf ? profBonus : 0);
+          const skillEl = document.getElementById(`skillMod_${skillName}`);
+          if (skillEl) skillEl.textContent = formatMod(total);
+        });
+
+        updateCombatStats();
+        updateSpellDC();
+      };
+
+      function updateCombatStats() {
+        const dexScore = parseInt(document.getElementById("dex").value) || 10;
+        document.getElementById("initiative").value = formatMod(
+          calcMod(dexScore),
+        );
+      }
+
+      function updateSpellDC() {
+        const spellAbility = document.getElementById("spellAbility").value;
+        const abilityScore =
+          parseInt(document.getElementById(spellAbility).value) || 10;
+        const abilityMod = calcMod(abilityScore);
+        const profBonus =
+          parseInt(document.getElementById("profBonus").value) || 0;
+        document.getElementById("spellDC").value = 8 + profBonus + abilityMod;
+      }
+
+      window.calculateTotalAC = function () {
+        const acInput = document.getElementById("baseAC");
+        const shieldBox = document.getElementById("shieldEquipped");
+        if (!acInput || !shieldBox) return;
+
+        // Use dataset to store the raw base AC (without shield)
+        if (acInput.dataset.baseAc === undefined) {
+          acInput.dataset.baseAc = acInput.value;
+        }
+
+        let base = parseInt(acInput.dataset.baseAc) || 10;
+        let total = base + (shieldBox.checked ? 2 : 0);
+        acInput.value = total;
+        saveCharacter();
+      };
+
+      window.calculateWeight = function () {
+        let total = 0;
+        document.querySelectorAll(".inventory-item").forEach((row) => {
+          const qty = parseFloat(row.querySelector(".inv-qty").value) || 0;
+          const weight =
+            parseFloat(row.querySelector(".inv-weight").value) || 0;
+          total += qty * weight;
+        });
+
+        const strScore = parseInt(document.getElementById("str").value) || 0;
+        const maxCapacity = strScore * 15;
+
+        document.getElementById("totalWeightVal").textContent =
+          total.toFixed(1);
+        document.getElementById("maxWeightVal").textContent = maxCapacity;
+
+        const weightBox = document.querySelector(".total-weight-box");
+        if (total > maxCapacity) {
+          weightBox.style.color = "var(--red-dark)";
+          weightBox.style.borderColor = "var(--red)";
+        } else {
+          weightBox.style.color = "var(--ink)";
+          weightBox.style.borderColor = "var(--gold)";
+        }
+      };
+
+      /* =========================================
+         4. UI HANDLERS & INTERACTIONS
+         ========================================= */
+
+      // -- HP Bar --
+      window.updateHpBar = function () {
+        const current = parseInt(document.getElementById("hp").value) || 0;
+        const max = parseInt(document.getElementById("maxHp").value) || 1;
+        const temp = parseInt(document.getElementById("tempHp").value) || 0;
+
+        const currentPct = Math.min(100, Math.max(0, (current / max) * 100));
+        const tempPct = Math.min(100, (temp / max) * 100);
+
+        const hpBarCurrent = document.getElementById("hpBarCurrent");
+        const hpBarTemp = document.getElementById("hpBarTemp");
+
+        if (current >= max) {
+          hpBarCurrent.style.width = `${currentPct}%`;
+          hpBarTemp.style.width = `${tempPct}%`;
+          hpBarTemp.style.left = "0%";
+        } else {
+          hpBarCurrent.style.width = `${currentPct}%`;
+          hpBarTemp.style.width = `${Math.min(tempPct, 100 - currentPct)}%`;
+          hpBarTemp.style.left = `${currentPct}%`;
+        }
+
+        document.getElementById("hpTextDisplay").textContent =
+          current + (temp > 0 ? ` (+${temp})` : "");
+        document.getElementById("maxHpTextDisplay").textContent = max;
+      };
+
+      window.adjustHP = function (amount) {
+        const hpInput = document.getElementById("hp");
+        let val = parseInt(hpInput.value) || 0;
+        val += amount;
+        hpInput.value = val;
+        updateHpBar();
+        saveCharacter();
+      };
+
+      window.adjustTempHP = function (amount) {
+        const tempInput = document.getElementById("tempHp");
+        let val = parseInt(tempInput.value) || 0;
+        val += amount;
+        if (val < 0) val = 0;
+        tempInput.value = val;
+        updateHpBar();
+        saveCharacter();
+      };
+
+      // -- Toggles --
+      window.toggleSkill = function (skillName) {
+        skillProficiency[skillName] = !skillProficiency[skillName];
+        const checkbox = document.getElementById(`skillCheck_${skillName}`);
+        if (checkbox)
+          checkbox.classList.toggle("checked", skillProficiency[skillName]);
+        updateModifiers();
+        saveCharacter();
+      };
+
+      window.toggleSave = function (ability) {
+        saveProficiency[ability] = !saveProficiency[ability];
+        const checkbox = document.getElementById(`saveCheck_${ability}`);
+        if (checkbox)
+          checkbox.classList.toggle("checked", saveProficiency[ability]);
+        updateModifiers();
+        saveCharacter();
+      };
+
+      window.toggleDeathSave = function (type, index) {
+        const arr =
+          type === "success" ? deathSaves.successes : deathSaves.failures;
+        arr[index] = !arr[index];
+        const elId =
+          type === "success" ? `deathSuccess${index}` : `deathFailure${index}`;
+        document.getElementById(elId).classList.toggle("checked", arr[index]);
+        saveCharacter();
+      };
+
+      window.switchTab = function (tabName) {
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((c) => c.classList.remove("active"));
+        document
+          .querySelectorAll(".tab")
+          .forEach((t) => t.classList.remove("active"));
+        document.getElementById(tabName).classList.add("active");
+        event.target.classList.add("active");
+      };
+
+      // -- Feature/Item Management --
+      window.addFeatureItem = function (containerId, title = "", desc = "") {
+        const container = document.getElementById(containerId);
+        const box = document.createElement("div");
+        box.className = "feature-box";
+        box.innerHTML = `
+          <div class="feature-header">
+              <input type="text" class="feature-title-input" placeholder="Feature Name" value="${title}" oninput="saveCharacter()">
+              <button class="delete-feature-btn" onclick="this.parentElement.parentElement.remove(); saveCharacter()">×</button>
+          </div>
+          <textarea class="feature-desc-input" placeholder="Description..." oninput="saveCharacter()">${desc}</textarea>
+        `;
+        container.appendChild(box);
+        saveCharacter();
+      };
+
+      window.addWeapon = function () {
+        const weaponList = document.getElementById("weapon-list");
+        const newWeapon = document.createElement("div");
+        newWeapon.className = "feature-box weapon-item";
+        newWeapon.style.paddingRight = "40px";
+        newWeapon.style.position = "relative";
+        newWeapon.innerHTML = `
+          <button class="delete-feature-btn" style="position: absolute; top: 5px; right: 5px; z-index:10; width: 24px; height: 24px;" onclick="this.closest('.weapon-item').remove(); saveCharacter();">&times;</button>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div class="grid grid-3" style="margin-bottom: 0; gap: 10px;">
+                  <div class="field"><span class="field-label">Weapon Name</span><input type="text" class="weapon-name" placeholder="e.g. Longsword" /></div>
+                  <div class="field"><span class="field-label">Atk Bonus</span><input type="text" class="weapon-atk" placeholder="+5" /></div>
+                  <div class="field"><span class="field-label">Damage</span><input type="text" class="weapon-damage" placeholder="1d8+3 Slash" /></div>
+              </div>
+              <div class="field"><span class="field-label">Notes</span><input type="text" class="weapon-notes" placeholder="Properties..." /></div>
+          </div>
+        `;
+        weaponList.appendChild(newWeapon);
+        newWeapon
+          .querySelectorAll("input")
+          .forEach((input) => input.addEventListener("input", saveCharacter));
+      };
+
+      window.addInventoryItem = function (
+        name = "",
+        qty = 1,
+        weight = 0,
+        isEquipped = false,
+      ) {
+        const targetListId = isEquipped ? "equippedList" : "inventoryList";
+        const list = document.getElementById(targetListId);
+        const row = document.createElement("div");
+        row.className = "inventory-item";
+        row.draggable = true;
+
+        row.innerHTML = `
+          <div class="drag-handle">☰</div>
+          <div style="display:flex; justify-content:center;"><input type="checkbox" class="equipped-checkbox inv-equipped" ${isEquipped ? "checked" : ""}></div>
+          <input type="text" class="inv-input inv-name" placeholder="Item Name" value="${name}">
+          <input type="number" class="inv-input inv-qty" placeholder="1" value="${qty}" min="0" step="1">
+          <input type="number" class="inv-input inv-weight" placeholder="0" value="${weight}" min="0" step="0.1">
+          <button class="delete-feature-btn" onclick="this.parentElement.remove(); calculateWeight(); saveCharacter()">×</button>
+        `;
+
+        // Drag Events
+        row.addEventListener("dragstart", () => row.classList.add("dragging"));
+        row.addEventListener("dragend", () => {
+          row.classList.remove("dragging");
+          saveCharacter();
+        });
+
+        // Move logic
+        row
+          .querySelector(".inv-equipped")
+          .addEventListener("change", function () {
+            const target = this.checked
+              ? document.getElementById("equippedList")
+              : document.getElementById("inventoryList");
+            target.appendChild(row);
+            calculateWeight();
+            saveCharacter();
+          });
+
+        row.querySelectorAll("input").forEach((input) => {
+          input.addEventListener("input", () => {
+            calculateWeight();
+            saveCharacter();
+          });
+        });
+
+        list.appendChild(row);
+        calculateWeight();
+        saveCharacter();
+      };
+
+      // -- Spell Logic --
+      function renderSpellSlots() {
+        const container = document.getElementById("spellSlotsContainer");
+        container.innerHTML = "";
+        spellSlotsData.forEach((slotData, index) => {
+          const slotBox = document.createElement("div");
+          slotBox.className = "slot-level-container";
+          let html = `
+            <div class="slot-controls">
+                <strong>Level ${slotData.level}</strong>
+                <div class="slot-btn-group">
+                    <button class="slot-btn-small" onclick="adjustSlotCount(${index}, -1)">-</button>
+                    <button class="slot-btn-small" onclick="adjustSlotCount(${index}, 1)">+</button>
+                    <button class="slot-btn-small" style="background:#fee; color:red; margin-left:8px;" onclick="removeSpellLevel(${index})">×</button>
+                </div>
+            </div>
+            <div class="spell-slot-tracker">`;
+          for (let i = 0; i < slotData.total; i++) {
+            const isUsed = i < slotData.used ? "used" : "";
+            html += `<div class="spell-slot ${isUsed}" onclick="toggleSlot(${index}, ${i})"></div>`;
+          }
+          html += `</div>`;
+          slotBox.innerHTML = html;
+          container.appendChild(slotBox);
+        });
+      }
+
+      window.toggleSlot = function (levelIndex, slotIndex) {
+        const data = spellSlotsData[levelIndex];
+        if (slotIndex < data.used) {
+          data.used = slotIndex;
+        } else {
+          data.used = slotIndex + 1;
+        }
+        renderSpellSlots();
+        saveCharacter();
+      };
+
+      window.adjustSlotCount = function (index, change) {
+        if (spellSlotsData[index].total + change < 0) return;
+        spellSlotsData[index].total += change;
+        if (spellSlotsData[index].used > spellSlotsData[index].total) {
+          spellSlotsData[index].used = spellSlotsData[index].total;
+        }
+        renderSpellSlots();
+        saveCharacter();
+      };
+
+      window.addNewSpellLevel = function () {
+        const nextLevel =
+          spellSlotsData.length > 0
+            ? spellSlotsData[spellSlotsData.length - 1].level + 1
+            : 1;
+        spellSlotsData.push({ level: nextLevel, total: 1, used: 0 });
+        renderSpellSlots();
+        saveCharacter();
+      };
+
+      window.removeSpellLevel = function (index) {
+        if (confirm("Delete this spell level group?")) {
+          spellSlotsData.splice(index, 1);
+          renderSpellSlots();
+          saveCharacter();
+        }
+      };
+
+      window.addSpellRow = function (
+        containerId,
+        defaultLevel = 1,
+        data = null,
+      ) {
+        const container = document.getElementById(containerId);
+        const row = document.createElement("div");
+        row.className = "spell-row";
+        const lvl = data ? data.level : defaultLevel === 0 ? "0" : "1";
+        row.innerHTML = `
+          <input type="number" class="spell-input spell-lvl" value="${lvl}" placeholder="Lvl" style="text-align:center;">
+          <input type="text" class="spell-input spell-name" value="${data ? data.name : ""}" placeholder="Spell Name">
+          <input type="text" class="spell-input spell-time" value="${data ? data.time : ""}" placeholder="1 Action">
+          <input type="text" class="spell-input spell-range" value="${data ? data.range : ""}" placeholder="60 ft">
+          <button class="delete-feature-btn" onclick="this.parentElement.remove(); saveCharacter()">×</button>
+        `;
+        row
+          .querySelectorAll("input")
+          .forEach((input) => input.addEventListener("input", saveCharacter));
+        container.appendChild(row);
+        saveCharacter();
+      };
+
+      // -- Modal Logic --
+      window.showSkillInfo = function (skillKey, event) {
+        if (event) event.stopPropagation();
+        const title = skillKey
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase());
+        document.getElementById("infoModalTitle").textContent = title;
+        document.getElementById("infoModalText").textContent =
+          skillDescriptions[skillKey] || "No description available.";
+        document.getElementById("infoModal").style.display = "flex";
+      };
+
+      window.closeInfoModal = (e) => {
+        if (e.target.id === "infoModal")
+          document.getElementById("infoModal").style.display = "none";
+      };
+      window.openCurrencyModal = () =>
+        (document.getElementById("currencyModal").style.display = "flex");
+      window.closeCurrencyModal = (e) => {
+        if (e.target.id === "currencyModal")
+          document.getElementById("currencyModal").style.display = "none";
+      };
+
+      // Ability Score Modal
+      window.openScoreModal = function () {
+        document.getElementById("scoreModal").style.display = "flex";
+        abilities.forEach((stat) => {
+          document.getElementById(`sa_${stat}`).value = "";
+        });
+        updateStandardArrayOptions();
+        resetPointBuy();
+      };
+      window.closeScoreModal = () =>
+        (document.getElementById("scoreModal").style.display = "none");
+      window.switchScoreTab = function (mode) {
+        document
+          .querySelectorAll(".score-tab")
+          .forEach((t) => t.classList.remove("active"));
+        document
+          .querySelectorAll(".score-method-container")
+          .forEach((c) => c.classList.remove("active"));
+        if (mode === "standard") {
+          document
+            .querySelector(".score-tab:first-child")
+            .classList.add("active");
+          document.getElementById("tab-standard").classList.add("active");
+        } else {
+          document
+            .querySelector(".score-tab:last-child")
+            .classList.add("active");
+          document.getElementById("tab-pointbuy").classList.add("active");
+        }
+      };
+
+      // Standard Array Logic
+      window.updateStandardArrayOptions = function () {
+        const selects = abilities.map((s) =>
+          document.getElementById(`sa_${s}`),
+        );
+        const selectedValues = selects
+          .map((s) => s.value)
+          .filter((v) => v !== "");
+        selects.forEach((select) => {
+          const myValue = select.value;
+          Array.from(select.options).forEach((opt) => {
+            if (opt.value === "") {
+              opt.disabled = false;
+              return;
+            }
+            opt.disabled =
+              selectedValues.includes(opt.value) && opt.value !== myValue;
+          });
+        });
+      };
+      window.applyStandardArray = function () {
+        let allFilled = true;
+        abilities.forEach((stat) => {
+          if (document.getElementById(`sa_${stat}`).value === "")
+            allFilled = false;
+        });
+        if (!allFilled) {
+          alert("Please assign a score to every ability.");
+          return;
+        }
+        abilities.forEach((stat) => {
+          document.getElementById(stat).value = document.getElementById(
+            `sa_${stat}`,
+          ).value;
+        });
+        updateModifiers();
+        saveCharacter();
+        closeScoreModal();
+      };
+
+      // Point Buy Logic
+      function resetPointBuy() {
+        pbScores = { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 };
+        renderPointBuy();
+      }
+      function getPointCost(score) {
+        return pbCosts[score] || 0;
+      }
+      function calculateSpentPoints() {
+        return Object.values(pbScores).reduce(
+          (acc, score) => acc + getPointCost(score),
+          0,
+        );
+      }
+      window.adjustPointBuy = function (stat, delta) {
+        const currentScore = pbScores[stat];
+        const newScore = currentScore + delta;
+        if (newScore < 8 || newScore > 15) return;
+        pbScores[stat] = newScore;
+        if (calculateSpentPoints() > maxPoints) {
+          pbScores[stat] = currentScore;
+          alert("Not enough points!");
+        }
+        renderPointBuy();
+      };
+      function renderPointBuy() {
+        const container = document.getElementById("pb-rows-container");
+        container.innerHTML = "";
+        const remaining = maxPoints - calculateSpentPoints();
+        const remEl = document.getElementById("pb-remaining");
+        remEl.textContent = remaining;
+        remEl.style.color = remaining < 0 ? "red" : "var(--ink)";
+
+        Object.keys(pbScores).forEach((stat) => {
+          const score = pbScores[stat];
+          const canUpgrade =
+            score < 15 &&
+            remaining >= getPointCost(score + 1) - getPointCost(score);
+          const row = document.createElement("div");
+          row.className = "pb-row";
+          row.innerHTML = `
+             <div class="pb-label" style="text-transform:uppercase; font-weight:bold; width:100px;">${stat}</div>
+             <div class="pb-controls">
+                <button class="pb-btn" onclick="adjustPointBuy('${stat}', -1)" ${score <= 8 ? "disabled" : ""}>-</button>
+                <span class="pb-val">${score}</span>
+                <button class="pb-btn" onclick="adjustPointBuy('${stat}', 1)" ${!canUpgrade ? "disabled" : ""}>+</button>
+             </div>
+             <div class="pb-cost">Cost: ${getPointCost(score)}</div>
+          `;
+          container.appendChild(row);
+        });
+      }
+      window.applyPointBuy = function () {
+        Object.keys(pbScores).forEach((stat) => {
+          document.getElementById(stat).value = pbScores[stat];
+        });
+        updateModifiers();
+        saveCharacter();
+        closeScoreModal();
+      };
+
+      // Alignment Logic
+      window.setAlignment = function (val) {
+        document.getElementById("alignment").value = val;
+        document.getElementById("alignModal").style.display = "none";
+        saveCharacter();
+      };
+      document
+        .getElementById("alignment")
+        .addEventListener(
+          "click",
+          () => (document.getElementById("alignModal").style.display = "flex"),
+        );
+      document.getElementById("cancelAlign").onclick = () =>
+        (document.getElementById("alignModal").style.display = "none");
+
+      // Theme Logic
+      window.openThemeModal = () =>
+        (document.getElementById("themeModal").style.display = "flex");
+      window.closeThemeModal = (e) => {
+        if (e.target.id === "themeModal")
+          document.getElementById("themeModal").style.display = "none";
+      };
+      window.setTheme = function (themeName) {
+        document.body.className = themeName;
+        document.getElementById("themeModal").style.display = "none";
+        saveCharacter();
+      };
+
+      /* =========================================
+         5. PERSISTENCE (SAVE / LOAD)
+         ========================================= */
+      function getFeatureData(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return [];
+        return Array.from(container.querySelectorAll(".feature-box")).map(
+          (box) => ({
+            title: box.querySelector(".feature-title-input").value,
+            desc: box.querySelector("textarea").value,
+          }),
+        );
+      }
+
+      window.saveCharacter = function () {
+        const characterData = {
+          charName: document.getElementById("charName").value,
+          charClass: document.getElementById("charClass").value,
+          charSubclass: document.getElementById("charSubclass").value,
+          level: document.getElementById("level").value,
+          race: document.getElementById("race").value,
+          background: document.getElementById("background").value,
+          alignment: document.getElementById("alignment").value,
+          xp: document.getElementById("experience").value,
+          str: document.getElementById("str").value,
+          dex: document.getElementById("dex").value,
+          con: document.getElementById("con").value,
+          int: document.getElementById("int").value,
+          wis: document.getElementById("wis").value,
+          cha: document.getElementById("cha").value,
+          ac: document.getElementById("baseAC")?.value || "10",
+          shield: document.getElementById("shieldEquipped")?.checked || false,
+          armorLight: document.getElementById("armorLight").checked,
+          armorMedium: document.getElementById("armorMedium").checked,
+          armorHeavy: document.getElementById("armorHeavy").checked,
+          armorShield: document.getElementById("armorShield").checked,
+          weaponProfs: document.getElementById("weaponProfs").value,
+          toolProfs: document.getElementById("toolProfs").value,
+          speed: document.getElementById("speed").value,
+          hp: document.getElementById("hp").value,
+          maxHp: document.getElementById("maxHp").value,
+          tempHp: document.getElementById("tempHp").value,
+          profBonus: document.getElementById("profBonus").value,
+          hitDice: document.getElementById("hitDice").value,
+
+          weapons: Array.from(document.querySelectorAll(".weapon-item")).map(
+            (item) => ({
+              name: item.querySelector(".weapon-name").value,
+              atk: item.querySelector(".weapon-atk").value,
+              damage: item.querySelector(".weapon-damage").value,
+              notes: item.querySelector(".weapon-notes").value,
+            }),
+          ),
+          classFeatures: getFeatureData("classFeaturesContainer"),
+          raceFeatures: getFeatureData("raceFeaturesContainer"),
+          backgroundFeatures: getFeatureData("backgroundFeaturesContainer"),
+          feats: getFeatureData("featsContainer"),
+          inventory: Array.from(
+            document.querySelectorAll(".inventory-item"),
+          ).map((item) => ({
+            name: item.querySelector(".inv-name").value,
+            qty: item.querySelector(".inv-qty").value,
+            weight: item.querySelector(".inv-weight").value,
+            equipped: item.querySelector(".inv-equipped").checked,
+          })),
+          attunement: [
+            document.getElementById("attune1").value,
+            document.getElementById("attune2").value,
+            document.getElementById("attune3").value,
+          ],
+          spellSlotsData: spellSlotsData,
+          cantripsList: Array.from(
+            document.querySelectorAll("#cantripList .spell-row"),
+          ).map((row) => ({
+            level: row.querySelector(".spell-lvl").value,
+            name: row.querySelector(".spell-name").value,
+            time: row.querySelector(".spell-time").value,
+            range: row.querySelector(".spell-range").value,
+          })),
+          spellsList: Array.from(
+            document.querySelectorAll("#spellList .spell-row"),
+          ).map((row) => ({
+            level: row.querySelector(".spell-lvl").value,
+            name: row.querySelector(".spell-name").value,
+            time: row.querySelector(".spell-time").value,
+            range: row.querySelector(".spell-range").value,
+          })),
+          languages: document.getElementById("languages").value,
+          personality: document.getElementById("personality").value,
+          ideals: document.getElementById("ideals").value,
+          bonds: document.getElementById("bonds").value,
+          flaws: document.getElementById("flaws").value,
+          notes: document.getElementById("notes").value,
+
+          // Currency
+          cp: document.getElementById("cp").value,
+          sp: document.getElementById("sp").value,
+          ep: document.getElementById("ep").value,
+          gp: document.getElementById("gp").value,
+          pp: document.getElementById("pp").value,
+          spellAbility: document.getElementById("spellAbility").value,
+          spellAttackMod: document.getElementById("spellAttackMod").value,
+          spellAttackBonus: document.getElementById("spellAttackBonus").value,
+
+          skillProficiency,
+          saveProficiency,
+          deathSaves,
+          currentTheme: document.body.className,
+        };
+        localStorage.setItem("dndCharacter", JSON.stringify(characterData));
+      };
+
+      window.downloadJSON = function () {
+        saveCharacter();
+        const dataStr = localStorage.getItem("dndCharacter");
+        const dataObj = JSON.parse(dataStr);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${dataObj.charName || "character"}_sheet.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      window.loadJSON = function (input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            JSON.parse(e.target.result); // Validate JSON
+            localStorage.setItem("dndCharacter", e.target.result);
+            location.reload();
+          } catch (err) {
+            alert("Error loading file: " + err);
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      window.resetSheet = function () {
+        if (confirm("Clear all data? This cannot be undone.")) {
+          localStorage.removeItem("dndCharacter");
+          location.reload();
+        }
+      };
+
+      /* =========================================
+         6. INITIALIZATION & LISTENERS
+         ========================================= */
+      document.addEventListener("DOMContentLoaded", () => {
+        // XP Modal Logic
+        const expModal = document.getElementById("expModal");
+        document.getElementById("addExpBtn").onclick = () =>
+          (expModal.style.display = "flex");
+        document.getElementById("cancelExp").onclick = () =>
+          (expModal.style.display = "none");
+        document.getElementById("confirmExp").onclick = function () {
+          const toAdd =
+            parseInt(document.getElementById("expToAdd").value) || 0;
+          let currentXp =
+            parseInt(document.getElementById("experience").value) || 0;
+          let currentLevel =
+            parseInt(document.getElementById("level").value) || 1;
+
+          currentXp += toAdd;
+
+          // Level up check
+          let checkedLevel = true;
+          while (checkedLevel) {
+            let nextLevelEntry = xpTable.find(
+              (x) => x.lvl === currentLevel + 1,
+            );
+            let currentLevelEntry = xpTable.find((x) => x.lvl === currentLevel);
+            if (!nextLevelEntry) {
+              checkedLevel = false;
+              break;
+            }
+
+            let xpNeeded = nextLevelEntry.xp - currentLevelEntry.xp;
+            if (currentXp >= xpNeeded) {
+              currentXp -= xpNeeded;
+              currentLevel++;
+              document.getElementById("profBonus").value = xpTable.find(
+                (x) => x.lvl === currentLevel,
+              ).prof;
+            } else {
+              checkedLevel = false;
+            }
+          }
+
+          document.getElementById("experience").value = currentXp;
+          document.getElementById("level").value = currentLevel;
+          expModal.style.display = "none";
+          document.getElementById("expToAdd").value = "";
+          updateModifiers();
+          saveCharacter();
+        };
+
+        // Inventory Drag Drop Container Setup
+        const invContainer = document.getElementById("inventoryList");
+        const equipContainer = document.getElementById("equippedList");
+
+        [invContainer, equipContainer].forEach((container) => {
+          container.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(container, e.clientY);
+            const draggable = document.querySelector(".dragging");
+            if (draggable) {
+              if (afterElement == null) {
+                container.appendChild(draggable);
+              } else {
+                container.insertBefore(draggable, afterElement);
+              }
+            }
+          });
+        });
+
+        // Helper for Drag
+        function getDragAfterElement(container, y) {
+          const draggableElements = [
+            ...container.querySelectorAll(".inventory-item:not(.dragging)"),
+          ];
+          return draggableElements.reduce(
+            (closest, child) => {
+              const box = child.getBoundingClientRect();
+              const offset = y - box.top - box.height / 2;
+              if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+              } else {
+                return closest;
+              }
+            },
+            { offset: Number.NEGATIVE_INFINITY },
+          ).element;
+        }
+
+        // Global Auto-save
+        document.querySelectorAll("input, textarea, select").forEach((el) => {
+          el.addEventListener("input", saveCharacter);
+          el.addEventListener("change", saveCharacter);
+        });
+
+        // Specific Listeners
+        abilities.forEach((a) =>
+          document.getElementById(a).addEventListener("input", updateModifiers),
+        );
+        document.getElementById("profBonus").addEventListener("input", () => {
+          updateModifiers();
+          updateSpellDC();
+        });
+        document
+          .getElementById("spellAbility")
+          .addEventListener("change", updateSpellDC);
+        document
+          .getElementById("str")
+          .addEventListener("input", calculateWeight);
+        ["hp", "maxHp", "tempHp"].forEach((id) =>
+          document.getElementById(id).addEventListener("input", updateHpBar),
+        );
+
+        // Load Data
+        const saved = localStorage.getItem("dndCharacter");
+        if (saved) {
+          const data = JSON.parse(saved);
+
+          // Basics
+          if (data.currentTheme) document.body.className = data.currentTheme;
+          Object.keys(data).forEach((key) => {
+            const el = document.getElementById(key);
+            if (
+              el &&
+              !key.includes("Features") &&
+              ![
+                "weapons",
+                "inventory",
+                "attunement",
+                "skillProficiency",
+                "saveProficiency",
+                "deathSaves",
+              ].includes(key)
+            ) {
+              if (el.type === "checkbox") el.checked = data[key];
+              else el.value = data[key];
+            }
+          });
+
+          // Complex Structures
+          if (data.skillProficiency) {
+            Object.assign(skillProficiency, data.skillProficiency);
+            Object.keys(skillProficiency).forEach((k) => {
+              if (skillProficiency[k])
+                document
+                  .getElementById(`skillCheck_${k}`)
+                  ?.classList.add("checked");
+            });
+          }
+          if (data.saveProficiency) {
+            Object.assign(saveProficiency, data.saveProficiency);
+            Object.keys(saveProficiency).forEach((k) => {
+              if (saveProficiency[k])
+                document
+                  .getElementById(`saveCheck_${k}`)
+                  ?.classList.add("checked");
+            });
+          }
+          if (data.deathSaves) {
+            Object.assign(deathSaves, data.deathSaves);
+            deathSaves.successes.forEach((v, i) =>
+              document
+                .getElementById(`deathSuccess${i}`)
+                ?.classList.toggle("checked", v),
+            );
+            deathSaves.failures.forEach((v, i) =>
+              document
+                .getElementById(`deathFailure${i}`)
+                ?.classList.toggle("checked", v),
+            );
+          }
+
+          // Lists
+          (data.classFeatures || []).forEach((f) =>
+            addFeatureItem("classFeaturesContainer", f.title, f.desc),
+          );
+          (data.raceFeatures || []).forEach((f) =>
+            addFeatureItem("raceFeaturesContainer", f.title, f.desc),
+          );
+          (data.backgroundFeatures || []).forEach((f) =>
+            addFeatureItem("backgroundFeaturesContainer", f.title, f.desc),
+          );
+          (data.feats || []).forEach((f) =>
+            addFeatureItem("featsContainer", f.title, f.desc),
+          );
+
+          // Weapons
+          const weaponList = document.getElementById("weapon-list");
+          weaponList.innerHTML = "";
+          (data.weapons || []).forEach((w) => {
+            const newWeapon = document.createElement("div");
+            newWeapon.className = "feature-box weapon-item";
+            newWeapon.style.paddingRight = "40px";
+            newWeapon.style.position = "relative";
+            newWeapon.innerHTML = `
+                    <button class="delete-feature-btn" style="position: absolute; top: 5px; right: 5px; z-index:10; width: 24px; height: 24px;" onclick="this.closest('.weapon-item').remove(); saveCharacter();">&times;</button>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div class="grid grid-3" style="margin-bottom: 0; gap: 10px;">
+                            <div class="field"><span class="field-label">Weapon Name</span><input type="text" class="weapon-name" value="${w.name || ""}" /></div>
+                            <div class="field"><span class="field-label">Atk Bonus</span><input type="text" class="weapon-atk" value="${w.atk || ""}" /></div>
+                            <div class="field"><span class="field-label">Damage</span><input type="text" class="weapon-damage" value="${w.damage || ""}" /></div>
+                        </div>
+                        <div class="field"><span class="field-label">Notes</span><input type="text" class="weapon-notes" value="${w.notes || ""}" /></div>
+                    </div>`;
+            weaponList.appendChild(newWeapon);
+            newWeapon
+              .querySelectorAll("input")
+              .forEach((input) =>
+                input.addEventListener("input", saveCharacter),
+              );
+          });
+
+          // Inventory
+          document.getElementById("inventoryList").innerHTML = "";
+          document.getElementById("equippedList").innerHTML = "";
+          (data.inventory || []).forEach((item) =>
+            addInventoryItem(item.name, item.qty, item.weight, item.equipped),
+          );
+
+          // Spells
+          if (data.spellSlotsData) spellSlotsData = data.spellSlotsData;
+          document.getElementById("cantripList").innerHTML = "";
+          (data.cantripsList || []).forEach((s) =>
+            addSpellRow("cantripList", 0, s),
+          );
+          document.getElementById("spellList").innerHTML = "";
+          (data.spellsList || []).forEach((s) =>
+            addSpellRow("spellList", 1, s),
+          );
+
+          // Attunement
+          if (data.attunement) {
+            data.attunement.forEach(
+              (v, i) =>
+                (document.getElementById(`attune${i + 1}`).value = v || ""),
+            );
+          }
+
+          // AC Fix
+          if (data.shield)
+            document.getElementById("shieldEquipped").checked = true;
+        } else {
+          // Defaults for new sheet
+          addFeatureItem("classFeaturesContainer");
+          addFeatureItem("raceFeaturesContainer");
+          addFeatureItem("backgroundFeaturesContainer");
+          addFeatureItem("featsContainer");
+        }
+
+        // Final UI Updates
+        updateModifiers();
+        renderSpellSlots();
+        updateHpBar();
+        calculateWeight();
+      });
+    </script>
+  </body>
+</html>
