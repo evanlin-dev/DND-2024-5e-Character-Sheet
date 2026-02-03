@@ -1831,12 +1831,7 @@
       <div class="combat-stats">
         <div class="combat-stat">
           <div class="combat-stat-label">Armor Class</div>
-          <input
-            type="number"
-            id="baseAC"
-            value="10"
-            oninput="calculateTotalAC()"
-          />
+          <input type="number" id="baseAC" value="10" />
           <div
             style="
               display: flex;
@@ -2193,7 +2188,7 @@
         <button class="add-feature-btn" onclick="addSpellRow('cantripList', 0)">
           + Add Cantrip
         </button>
-        
+
         <h3 class="section-title" style="margin-top: 24px">
           Known / Prepared Spells
         </h3>
@@ -2862,20 +2857,18 @@
           parseInt(document.getElementById("profBonus").value) || 0;
         document.getElementById("spellDC").value = 8 + profBonus + abilityMod;
       }
-
+      
       window.calculateTotalAC = function () {
         const acInput = document.getElementById("baseAC");
         const shieldBox = document.getElementById("shieldEquipped");
-        if (!acInput || !shieldBox) return;
+        let currentVal = parseInt(acInput.value) || 10;
 
-        // Use dataset to store the raw base AC (without shield)
-        if (acInput.dataset.baseAc === undefined) {
-          acInput.dataset.baseAc = acInput.value;
+        // Simply add or subtract 2 based on the new state of the checkbox
+        if (shieldBox.checked) {
+          acInput.value = currentVal + 2;
+        } else {
+          acInput.value = currentVal - 2;
         }
-
-        let base = parseInt(acInput.dataset.baseAc) || 10;
-        let total = base + (shieldBox.checked ? 2 : 0);
-        acInput.value = total;
         saveCharacter();
       };
 
