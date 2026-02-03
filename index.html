@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>D&D Character Sheet</title>
+    <title>Character Sheet</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%238b2e2e' stroke='%23d4a574' stroke-width='3' stroke-linejoin='round' d='M32 4 L56 18 L56 46 L32 60 L8 46 L8 18 Z M32 4 L32 32 M32 32 L56 18 M32 32 L8 18 M32 32 L32 60 M32 32 L56 46 M32 32 L8 46'/%3E%3C/svg%3E"
@@ -1342,7 +1342,7 @@
     <div class="character-sheet">
       <div class="header">
         <h1>Character Sheet</h1>
-        <div class="subtitle">D&D 2024 5e</div>
+        <div class="subtitle">Character</div>
       </div>
 
       <div class="grid grid-2">
@@ -4399,32 +4399,33 @@
         }
       }
 
-      window.addWeapon = function () {
+      window.addWeapon = function (data = null) {
         const weaponList = document.getElementById("weapon-list");
         const newWeapon = document.createElement("div");
         newWeapon.className = "feature-box weapon-item";
         newWeapon.style.paddingRight = "40px";
         newWeapon.style.position = "relative";
 
-        // CHANGED: added onclick="openWeaponPicker(this)" and readonly to the name input
         newWeapon.innerHTML = `
-      <button class="delete-feature-btn" style="position: absolute; top: 5px; right: 5px; z-index:10; width: 24px; height: 24px;" onclick="this.closest('.weapon-item').remove(); saveCharacter();">&times;</button>
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-          <div class="grid grid-3" style="margin-bottom: 0; gap: 10px;">
-              <div class="field">
-                <span class="field-label">Weapon Name</span>
-                <input type="text" class="weapon-name" placeholder="Click to select..." onclick="openWeaponPicker(this)" readonly style="cursor: pointer; color: var(--red-dark); font-weight: bold;" />
-              </div>
-              <div class="field"><span class="field-label">Atk Bonus</span><input type="text" class="weapon-atk" placeholder="+0" /></div>
-              <div class="field"><span class="field-label">Damage</span><input type="text" class="weapon-damage" placeholder="1d6+0" /></div>
-          </div>
-          <div class="field"><span class="field-label">Notes</span><input type="text" class="weapon-notes" placeholder="Properties..." /></div>
-      </div>
-    `;
+    <button class="delete-feature-btn" style="position: absolute; top: 5px; right: 5px; z-index:10; width: 24px; height: 24px;" onclick="this.closest('.weapon-item').remove(); saveCharacter();">&times;</button>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div class="grid grid-3" style="margin-bottom: 0; gap: 10px;">
+            <div class="field">
+              <span class="field-label">Weapon Name</span>
+              <input type="text" class="weapon-name" placeholder="Click to select..." onclick="openWeaponPicker(this)" readonly value="${data ? data.name : ""}" style="cursor: pointer; color: var(--red-dark); font-weight: bold;" />
+            </div>
+            <div class="field"><span class="field-label">Atk Bonus</span><input type="text" class="weapon-atk" placeholder="+0" value="${data ? data.atk : ""}" /></div>
+            <div class="field"><span class="field-label">Damage</span><input type="text" class="weapon-damage" placeholder="1d6+0" value="${data ? data.damage : ""}" /></div>
+        </div>
+        <div class="field"><span class="field-label">Notes</span><input type="text" class="weapon-notes" placeholder="Properties..." value="${data ? data.notes : ""}" /></div>
+    </div>
+  `;
         weaponList.appendChild(newWeapon);
-        newWeapon
-          .querySelectorAll("input")
-          .forEach((input) => input.addEventListener("input", saveCharacter));
+
+        // Attach save listeners to the new inputs
+        newWeapon.querySelectorAll("input").forEach((input) => {
+          input.addEventListener("input", saveCharacter);
+        });
       };
 
       window.addInventoryItem = function (
@@ -5182,11 +5183,14 @@
           );
 
           // Weapons
+          // Weapons loading section
           const weaponList = document.getElementById("weapon-list");
           weaponList.innerHTML = "";
-          (data.weapons || []).forEach((w) => {
-            addWeapon(w); // Update to use the new wrapper function logic
-          });
+          if (data.weapons && data.weapons.length > 0) {
+            data.weapons.forEach((w) => {
+              addWeapon(w);
+            });
+          }
 
           // Inventory
           document.getElementById("inventoryList").innerHTML = "";
