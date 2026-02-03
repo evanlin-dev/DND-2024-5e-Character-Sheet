@@ -668,7 +668,7 @@
         margin-bottom: 20px;
         flex-wrap: wrap;
       }
-      .tab {
+.tab {
         flex: 1;
         min-width: 120px;
         padding: 12px 20px;
@@ -681,6 +681,9 @@
         cursor: pointer;
         text-align: center;
         transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .tab.active {
         background: white;
@@ -1176,6 +1179,18 @@
         cursor: not-allowed;
         background: #ccc;
         color: #666;
+      }
+      .pb-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
+      .pb-val {
+        font-weight: bold;
+        font-size: 1.2rem;
+        min-width: 24px;
+        text-align: center;
       }
       .sa-grid {
         display: grid;
