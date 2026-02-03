@@ -1144,6 +1144,92 @@
         color: var(--red-dark);
       }
 
+      /* =========================================
+   11. MULTI-SELECT MODAL STYLES
+   ========================================= */
+      .tag-display {
+        min-height: 60px;
+        border: 2px solid var(--gold);
+        border-radius: 6px;
+        padding: 8px;
+        background: white;
+        cursor: pointer;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-content: flex-start;
+        transition: all 0.3s ease;
+      }
+      .tag-display:hover {
+        border-color: var(--red);
+        box-shadow: 0 2px 8px var(--shadow);
+      }
+      .tag-item {
+        background: var(--parchment-dark);
+        border: 1px solid var(--gold-dark);
+        color: var(--ink);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+      }
+      .checklist-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 10px;
+        margin-bottom: 16px;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 8px;
+      }
+      .checklist-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: white;
+        padding: 8px;
+        border: 1px solid var(--gold);
+        border-radius: 4px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .checklist-item:hover {
+        background: var(--parchment);
+        border-color: var(--red);
+      }
+      .checklist-item input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--red);
+        cursor: pointer;
+      }
+      .modal-section-header {
+        font-family: "Cinzel", serif;
+        font-weight: 700;
+        color: var(--red-dark);
+        margin: 16px 0 8px 0;
+        border-bottom: 1px solid var(--gold);
+        padding-bottom: 4px;
+      }
+      .ref-box {
+        background: #fff;
+        border: 1px dashed var(--gold-dark);
+        padding: 10px;
+        font-size: 0.85rem;
+        color: var(--ink-light);
+        margin-bottom: 20px;
+        max-height: 150px;
+        overflow-y: auto;
+      }
+      .ref-title {
+        font-weight: bold;
+        color: var(--red);
+        display: block;
+        margin-top: 4px;
+      }
+
       /* Ability Score Modal */
       .score-modal-tabs {
         display: flex;
@@ -1354,6 +1440,11 @@
                 <div class="checkmark">✓</div>
               </div>
               <div class="skill-name">Saving Throw</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('save_str', event)"
+                >?</span
+              >
               <div class="skill-mod" id="saveMod_str">+0</div>
             </div>
             <div class="skill-item" onclick="toggleSkill('athletics')">
@@ -1398,6 +1489,11 @@
                 <div class="checkmark">✓</div>
               </div>
               <div class="skill-name">Saving Throw</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('save_dex', event)"
+                >?</span
+              >
               <div class="skill-mod" id="saveMod_dex">+0</div>
             </div>
             <div class="skill-item" onclick="toggleSkill('acrobatics')">
@@ -1466,11 +1562,15 @@
                 <div class="checkmark">✓</div>
               </div>
               <div class="skill-name">Saving Throw</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('save_con', event)"
+                >?</span
+              >
               <div class="skill-mod" id="saveMod_con">+0</div>
             </div>
           </div>
         </div>
-
         <div class="stat-card">
           <div class="stat">
             <div class="stat-name">Intelligence</div>
@@ -1498,6 +1598,11 @@
                 <div class="checkmark">✓</div>
               </div>
               <div class="skill-name">Saving Throw</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('save_int', event)"
+                >?</span
+              >
               <div class="skill-mod" id="saveMod_int">+0</div>
             </div>
             <div class="skill-item" onclick="toggleSkill('arcana')">
@@ -1590,6 +1695,11 @@
                 <div class="checkmark">✓</div>
               </div>
               <div class="skill-name">Saving Throw</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('save_wis', event)"
+                >?</span
+              >
               <div class="skill-mod" id="saveMod_wis">+0</div>
             </div>
             <div class="skill-item" onclick="toggleSkill('animal_handling')">
@@ -1682,6 +1792,11 @@
                 <div class="checkmark">✓</div>
               </div>
               <div class="skill-name">Saving Throw</div>
+              <span
+                class="skill-info-btn"
+                onclick="showSkillInfo('save_cha', event)"
+                >?</span
+              >
               <div class="skill-mod" id="saveMod_cha">+0</div>
             </div>
             <div class="skill-item" onclick="toggleSkill('deception')">
@@ -1950,11 +2065,21 @@
         </div>
         <div class="field">
           <label class="field-label">Weapon Proficiency</label>
-          <textarea
-            id="weaponProfs"
-            placeholder="e.g. Simple, Martial, Longsword..."
-            style="min-height: 60px"
-          ></textarea>
+          <input type="hidden" id="weaponProfs" onchange="renderWeaponTags()" />
+          <div
+            class="tag-display"
+            id="weaponProfsDisplay"
+            onclick="openWeaponProfModal()"
+          >
+            <span
+              style="
+                color: var(--ink-light);
+                font-style: italic;
+                font-size: 0.9rem;
+              "
+              >Click to select...</span
+            >
+          </div>
         </div>
         <div class="field">
           <label class="field-label">Tool Proficiency</label>
@@ -1966,7 +2091,15 @@
         </div>
       </div>
 
-      <h2 class="section-title">Weapon Attacks</h2>
+      <h2 class="section-title">
+        Weapon Attacks
+        <span
+          class="skill-info-btn"
+          onclick="openMasteryModal()"
+          style="width: 22px; height: 22px; font-size: 0.9rem; margin-left: 8px"
+          >?</span
+        >
+      </h2>
       <div class="grid">
         <div id="weapon-list" class="vertical-list"></div>
         <button class="add-feature-btn" onclick="addWeapon()">
@@ -1974,6 +2107,7 @@
         </button>
       </div>
 
+      <h2 class="section-title">Extra</h2>
       <div class="tabs">
         <div class="tab active" onclick="switchTab('class-features')">
           Class Features
@@ -2465,6 +2599,52 @@
       </div>
     </div>
 
+    <div id="weaponProfModal" class="info-modal-overlay">
+      <div class="info-modal-content" style="max-width: 600px">
+        <button class="close-modal-btn" onclick="closeWeaponProfModal()">
+          &times;
+        </button>
+        <h3 class="info-modal-title" style="text-align: center">
+          Weapon Proficiencies
+        </h3>
+
+        <details style="margin-bottom: 15px">
+          <summary
+            style="
+              cursor: pointer;
+              font-family: &quot;Cinzel&quot;, serif;
+              color: var(--gold-dark);
+            "
+          >
+            View Weapon Property Rules
+          </summary>
+          <div class="ref-box">
+            <span class="ref-title">Ammunition</span> You need ammo to fire.
+            Drawing it is part of the attack. Recover half after battle.
+            <span class="ref-title">Finesse</span> Use STR or DEX for attack and
+            damage. <span class="ref-title">Heavy</span> Disadvantage if Small
+            (unless STR/DEX req met).
+            <span class="ref-title">Light</span> Allows Bonus Action attack with
+            another Light weapon. <span class="ref-title">Loading</span> Fire
+            only one shot per Action/Reaction/Bonus Action.
+            <span class="ref-title">Range</span> Normal/Long range. Disadvantage
+            between normal and long. <span class="ref-title">Reach</span> Adds 5
+            feet to reach. <span class="ref-title">Thrown</span> Can be thrown.
+            Use same ability mod as melee.
+            <span class="ref-title">Two-Handed</span> Requires two hands.
+            <span class="ref-title">Versatile</span> Can be used with one or two
+            hands (different damage).
+          </div>
+        </details>
+
+        <div class="checklist-grid" id="weaponChecklist"></div>
+
+        <div style="text-align: center; margin-top: 16px">
+          <button class="btn" onclick="saveWeaponProfsSelection()">Done</button>
+        </div>
+      </div>
+    </div>
+
     <div
       id="currencyModal"
       class="info-modal-overlay"
@@ -2551,6 +2731,158 @@
           >
             Cancel
           </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="weaponPickerModal" class="info-modal-overlay">
+      <div
+        class="info-modal-content"
+        style="
+          max-width: 500px;
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+        "
+      >
+        <button class="close-modal-btn" onclick="closeWeaponPicker()">
+          &times;
+        </button>
+        <h3 class="info-modal-title" style="text-align: center">
+          Select a Weapon
+        </h3>
+
+        <div style="margin-bottom: 10px; display: flex; gap: 8px">
+          <input
+            type="text"
+            id="weaponSearch"
+            placeholder="Search weapons..."
+            onkeyup="filterWeaponPicker()"
+            style="
+              border: 1px solid var(--gold);
+              padding: 8px;
+              border-radius: 4px;
+            "
+          />
+        </div>
+
+        <div
+          id="weaponPickerList"
+          class="checklist-grid"
+          style="grid-template-columns: 1fr; flex: 1; overflow-y: auto"
+        ></div>
+
+        <div
+          style="
+            margin-top: 10px;
+            border-top: 1px solid var(--gold);
+            padding-top: 10px;
+            text-align: center;
+          "
+        >
+          <p
+            style="
+              font-size: 0.8rem;
+              color: var(--ink-light);
+              margin-bottom: 8px;
+            "
+          >
+            Don't see it? Add custom.
+          </p>
+          <button class="btn btn-secondary" onclick="selectCustomWeapon()">
+            Use Custom Name
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="masteryModal"
+      class="info-modal-overlay"
+      onclick="closeMasteryModal(event)"
+    >
+      <div class="info-modal-content" style="max-width: 500px">
+        <button
+          class="close-modal-btn"
+          onclick="
+            document.getElementById('masteryModal').style.display = 'none'
+          "
+        >
+          &times;
+        </button>
+        <h3 class="info-modal-title" style="text-align: center">
+          Weapon Mastery Properties
+        </h3>
+
+        <div class="ref-box" style="max-height: 60vh; font-size: 0.95rem">
+          <div style="margin-bottom: 8px">
+            <span class="ref-title">Cleave</span>
+            <strong>Prerequisite:</strong> Melee Weapon, Heavy or Versatile
+            property.<br />
+            If you hit a creature, you can make a second attack roll against a
+            different creature within 5 feet of the first that is also within
+            your reach. On a hit, the second creature takes damage equal to the
+            ability modifier used for the attack (don't add ability mod to
+            damage). Can be used once per turn.
+          </div>
+
+          <div style="margin-bottom: 8px">
+            <span class="ref-title">Graze</span>
+            <strong>Prerequisite:</strong> Melee Weapon, Heavy or Versatile
+            property.<br />
+            If you miss a creature with your attack roll, you deal damage equal
+            to the ability modifier used for the attack.
+          </div>
+
+          <div style="margin-bottom: 8px">
+            <span class="ref-title">Nick</span>
+            <strong>Prerequisite:</strong> Light property.<br />
+            When you make the extra attack of the Light property, you can make
+            it as part of the Attack action instead of as a Bonus Action. You
+            can still only make this extra attack once per turn.
+          </div>
+
+          <div style="margin-bottom: 8px">
+            <span class="ref-title">Push</span>
+            <strong>Prerequisite:</strong> Heavy, Two-Handed, or Versatile
+            property.<br />
+            If you hit a creature (Large or smaller), you can push it 10 feet
+            straight away from you.
+          </div>
+
+          <div style="margin-bottom: 8px">
+            <span class="ref-title">Sap</span>
+            <strong>Prerequisite:</strong> Versatile property or no
+            properties.<br />
+            If you hit a creature, it has Disadvantage on its next attack roll
+            before the start of your next turn.
+          </div>
+
+          <div style="margin-bottom: 8px">
+            <span class="ref-title">Slow</span>
+            <strong>Prerequisite:</strong> None.<br />
+            If you hit a creature, reduce its Speed by 10 feet until the start
+            of your next turn. Speed cannot be reduced by more than 10 feet this
+            way.
+          </div>
+
+          <div style="margin-bottom: 8px">
+            <span class="ref-title">Topple</span>
+            <strong>Prerequisite:</strong> Heavy, Reach, or Versatile
+            property.<br />
+            If you hit a creature, it must succeed on a Constitution saving
+            throw (DC 8 + your Proficiency Bonus + the ability modifier used for
+            the attack) or be Prone.
+          </div>
+
+          <div style="margin-bottom: 8px">
+            <span class="ref-title">Vex</span>
+            <strong>Prerequisite:</strong> Ammunition, Finesse, or Light
+            property.<br />
+            If you hit a creature and deal damage, you have Advantage on your
+            next attack roll against that creature before the end of your next
+            turn.
+          </div>
         </div>
       </div>
     </div>
@@ -2784,6 +3116,18 @@
         performance: "Determines how well you can delight an audience.",
         persuasion:
           "Attempts to influence someone with tact and social graces.",
+        save_str:
+          "Used to resist a force that would physically move or bind you (e.g. gusts of wind, nets, entanglement).",
+        save_dex:
+          "Used to dodge out of harm's way (e.g. fireballs, lightning bolts, breath weapons, traps).",
+        save_con:
+          "Used to endure a toxic or physically taxing effect (e.g. poison, disease, concentration checks).",
+        save_int:
+          "Used to disbelieve certain illusions or resist mental assaults that rely on logic, memory, or psyche.",
+        save_wis:
+          "Used to resist effects that charm, frighten, or assault your willpower and senses (e.g. domination).",
+        save_cha:
+          "Used to withstand effects, such as possession or banishment, that would subsume your personality or hurl you to another plane.",
       };
 
       const xpTable = [
@@ -2808,6 +3152,336 @@
         { xp: 305000, lvl: 19, prof: 6 },
         { xp: 355000, lvl: 20, prof: 6 },
       ];
+
+      /* =========================================
+   1. DATA: PROFICIENCY GROUPS ONLY
+   ========================================= */
+      const weaponProficiencyOptions = [
+        {
+          category: "Categories",
+          items: ["Simple Weapons", "Martial Weapons", "Firearms", "Shields"],
+        },
+        {
+          category: "Properties/Groups",
+          items: [
+            "Finesse Weapons",
+            "Heavy Weapons",
+            "Light Weapons",
+            "Reach Weapons",
+            "Thrown Weapons",
+            "Versatile Weapons",
+          ],
+        },
+      ];
+
+      /* =========================================
+   2. DATA: WEAPON DATABASE (FOR ATTACKS)
+   ========================================= */
+      const dndWeaponsDB = {
+        // Simple Melee
+        Club: {
+          type: "Simple",
+          cat: "Melee",
+          dmg: "1d4",
+          dtype: "bludgeoning",
+          props: ["Light"],
+          mastery: "Slow",
+        },
+        Dagger: {
+          type: "Simple",
+          cat: "Melee",
+          dmg: "1d4",
+          dtype: "piercing",
+          props: ["Finesse", "Light", "Thrown (20/60)"],
+          mastery: "Nick",
+        },
+        Greatclub: {
+          type: "Simple",
+          cat: "Melee",
+          dmg: "1d8",
+          dtype: "bludgeoning",
+          props: ["Two-Handed"],
+          mastery: "Push",
+        },
+        Handaxe: {
+          type: "Simple",
+          cat: "Melee",
+          dmg: "1d6",
+          dtype: "slashing",
+          props: ["Light", "Thrown (20/60)"],
+          mastery: "Vex",
+        },
+        Javelin: {
+          type: "Simple",
+          cat: "Melee",
+          dmg: "1d6",
+          dtype: "piercing",
+          props: ["Thrown (30/120)"],
+          mastery: "Slow",
+        },
+        "Light Hammer": {
+          type: "Simple",
+          cat: "Melee",
+          dmg: "1d4",
+          dtype: "bludgeoning",
+          props: ["Light", "Thrown (20/60)"],
+          mastery: "Nick",
+        },
+        Mace: {
+          type: "Simple",
+          cat: "Melee",
+          dmg: "1d6",
+          dtype: "bludgeoning",
+          props: [],
+          mastery: "Sap",
+        },
+        Quarterstaff: {
+          type: "Simple",
+          cat: "Melee",
+          dmg: "1d6",
+          dtype: "bludgeoning",
+          props: ["Versatile (1d8)"],
+          mastery: "Topple",
+        },
+        Sickle: {
+          type: "Simple",
+          cat: "Melee",
+          dmg: "1d4",
+          dtype: "slashing",
+          props: ["Light"],
+          mastery: "Nick",
+        },
+        Spear: {
+          type: "Simple",
+          cat: "Melee",
+          dmg: "1d6",
+          dtype: "piercing",
+          props: ["Thrown (20/60)", "Versatile (1d8)"],
+          mastery: "Sap",
+        },
+
+        // Simple Ranged
+        "Light Crossbow": {
+          type: "Simple",
+          cat: "Ranged",
+          dmg: "1d8",
+          dtype: "piercing",
+          props: ["Ammunition (80/320)", "Loading", "Two-Handed"],
+          mastery: "Slow",
+        },
+        Dart: {
+          type: "Simple",
+          cat: "Ranged",
+          dmg: "1d4",
+          dtype: "piercing",
+          props: ["Finesse", "Thrown (20/60)"],
+          mastery: "Vex",
+        },
+        Shortbow: {
+          type: "Simple",
+          cat: "Ranged",
+          dmg: "1d6",
+          dtype: "piercing",
+          props: ["Ammunition (80/320)", "Two-Handed"],
+          mastery: "Vex",
+        },
+        Sling: {
+          type: "Simple",
+          cat: "Ranged",
+          dmg: "1d4",
+          dtype: "bludgeoning",
+          props: ["Ammunition (30/120)"],
+          mastery: "Slow",
+        },
+
+        // Martial Melee
+        Battleaxe: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d8",
+          dtype: "slashing",
+          props: ["Versatile (1d10)"],
+          mastery: "Topple",
+        },
+        Flail: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d8",
+          dtype: "bludgeoning",
+          props: [],
+          mastery: "Sap",
+        },
+        Glaive: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d10",
+          dtype: "slashing",
+          props: ["Heavy", "Reach", "Two-Handed"],
+          mastery: "Graze",
+        },
+        Greataxe: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d12",
+          dtype: "slashing",
+          props: ["Heavy", "Two-Handed"],
+          mastery: "Cleave",
+        },
+        Greatsword: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "2d6",
+          dtype: "slashing",
+          props: ["Heavy", "Two-Handed"],
+          mastery: "Graze",
+        },
+        Halberd: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d10",
+          dtype: "slashing",
+          props: ["Heavy", "Reach", "Two-Handed"],
+          mastery: "Cleave",
+        },
+        Lance: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d12",
+          dtype: "piercing",
+          props: ["Reach", "Special"], // Note: 2024 Lance creates Disadv within 5ft unless mounted
+          mastery: "Topple",
+        },
+        Longsword: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d8",
+          dtype: "slashing",
+          props: ["Versatile (1d10)"],
+          mastery: "Sap",
+        },
+        Maul: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "2d6",
+          dtype: "bludgeoning",
+          props: ["Heavy", "Two-Handed"],
+          mastery: "Topple",
+        },
+        Morningstar: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d8",
+          dtype: "piercing",
+          props: [],
+          mastery: "Sap",
+        },
+        Pike: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d10",
+          dtype: "piercing",
+          props: ["Heavy", "Reach", "Two-Handed"],
+          mastery: "Push",
+        },
+        Rapier: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d8",
+          dtype: "piercing",
+          props: ["Finesse"],
+          mastery: "Vex",
+        },
+        Scimitar: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d6",
+          dtype: "slashing",
+          props: ["Finesse", "Light"],
+          mastery: "Nick",
+        },
+        Shortsword: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d6",
+          dtype: "piercing",
+          props: ["Finesse", "Light"],
+          mastery: "Vex",
+        },
+        Trident: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d6",
+          dtype: "piercing",
+          props: ["Thrown (20/60)", "Versatile (1d8)"],
+          mastery: "Topple",
+        },
+        "War Pick": {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d8",
+          dtype: "piercing",
+          props: [],
+          mastery: "Sap",
+        },
+        Warhammer: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d8",
+          dtype: "bludgeoning",
+          props: ["Versatile (1d10)"],
+          mastery: "Push",
+        },
+        Whip: {
+          type: "Martial",
+          cat: "Melee",
+          dmg: "1d4",
+          dtype: "slashing",
+          props: ["Finesse", "Reach"],
+          mastery: "Slow",
+        },
+
+        // Martial Ranged
+        Blowgun: {
+          type: "Martial",
+          cat: "Ranged",
+          dmg: "1",
+          dtype: "piercing",
+          props: ["Ammunition (25/100)", "Loading"],
+          mastery: "Vex",
+        },
+        "Hand Crossbow": {
+          type: "Martial",
+          cat: "Ranged",
+          dmg: "1d6",
+          dtype: "piercing",
+          props: ["Ammunition (30/120)", "Light", "Loading"],
+          mastery: "Vex",
+        },
+        "Heavy Crossbow": {
+          type: "Martial",
+          cat: "Ranged",
+          dmg: "1d10",
+          dtype: "piercing",
+          props: ["Ammunition (100/400)", "Heavy", "Loading", "Two-Handed"],
+          mastery: "Push",
+        },
+        Longbow: {
+          type: "Martial",
+          cat: "Ranged",
+          dmg: "1d8",
+          dtype: "piercing",
+          props: ["Ammunition (150/600)", "Heavy", "Two-Handed"],
+          mastery: "Slow",
+        },
+        Net: {
+          type: "Martial",
+          cat: "Ranged",
+          dmg: "0",
+          dtype: "-",
+          props: ["Special", "Thrown (5/15)"],
+          mastery: null, // Net is technically "Adventuring Gear" in 2024 and has no mastery
+        },
+      };
 
       /* =========================================
    AUTO-RESIZE LOGIC
@@ -3135,23 +3809,339 @@
         ).element;
       }
 
+      /* =========================================
+   WEAPON PROFICIENCY MODAL LOGIC
+   ========================================= */
+      const weaponOptionsData = [
+        // Categories
+        {
+          category: "Categories",
+          items: ["Simple Weapons", "Martial Weapons", "Firearms", "Shields"],
+        },
+        // Common Simple
+        {
+          category: "Simple Weapons",
+          items: [
+            "Club",
+            "Dagger",
+            "Greatclub",
+            "Handaxe",
+            "Javelin",
+            "Light Hammer",
+            "Mace",
+            "Quarterstaff",
+            "Sickle",
+            "Spear",
+            "Light Crossbow",
+            "Dart",
+            "Shortbow",
+            "Sling",
+          ],
+        },
+        // Common Martial
+        {
+          category: "Martial Weapons",
+          items: [
+            "Battleaxe",
+            "Flail",
+            "Glaive",
+            "Greataxe",
+            "Greatsword",
+            "Halberd",
+            "Lance",
+            "Longsword",
+            "Maul",
+            "Morningstar",
+            "Pike",
+            "Rapier",
+            "Scimitar",
+            "Shortsword",
+            "Trident",
+            "War Pick",
+            "Warhammer",
+            "Whip",
+            "Blowgun",
+            "Hand Crossbow",
+            "Heavy Crossbow",
+            "Longbow",
+            "Net",
+          ],
+        },
+        // Properties (Included per request, if user wants to track specific property proficiency)
+        {
+          category: "Properties/Types",
+          items: [
+            "Finesse Weapons",
+            "Heavy Weapons",
+            "Light Weapons",
+            "Reach Weapons",
+            "Thrown Weapons",
+            "Versatile Weapons",
+          ],
+        },
+      ];
+
+      function openWeaponProfModal() {
+        const currentVal = document.getElementById("weaponProfs").value;
+        const currentArray = currentVal
+          ? currentVal.split(",").map((s) => s.trim())
+          : [];
+
+        const container = document.getElementById("weaponChecklist");
+        container.innerHTML = "";
+
+        // CHANGED: Uses weaponProficiencyOptions instead of weaponOptionsData
+        weaponProficiencyOptions.forEach((group) => {
+          const header = document.createElement("div");
+          header.className = "modal-section-header";
+          header.style.gridColumn = "1 / -1";
+          header.textContent = group.category;
+          container.appendChild(header);
+
+          group.items.forEach((item) => {
+            const div = document.createElement("div");
+            div.className = "checklist-item";
+            div.onclick = function (e) {
+              if (e.target.tagName !== "INPUT") {
+                const cb = this.querySelector("input");
+                cb.checked = !cb.checked;
+              }
+            };
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.value = item;
+            if (currentArray.includes(item)) checkbox.checked = true;
+
+            const span = document.createElement("span");
+            span.textContent = item;
+
+            div.appendChild(checkbox);
+            div.appendChild(span);
+            container.appendChild(div);
+          });
+        });
+
+        document.getElementById("weaponProfModal").style.display = "flex";
+      }
+
+      function closeWeaponProfModal() {
+        document.getElementById("weaponProfModal").style.display = "none";
+      }
+
+      function saveWeaponProfsSelection() {
+        const checkboxes = document.querySelectorAll(
+          "#weaponChecklist input[type='checkbox']:checked",
+        );
+        const selected = Array.from(checkboxes).map((cb) => cb.value);
+
+        // Update Hidden Input (for Save Logic)
+        document.getElementById("weaponProfs").value = selected.join(", ");
+
+        // Update Visuals
+        renderWeaponTags();
+        saveCharacter(); // Trigger auto-save
+        closeWeaponProfModal();
+      }
+
+      function renderWeaponTags() {
+        const raw = document.getElementById("weaponProfs").value;
+        const display = document.getElementById("weaponProfsDisplay");
+        display.innerHTML = "";
+
+        if (!raw) {
+          display.innerHTML =
+            '<span style="color: var(--ink-light); font-style: italic; font-size: 0.9rem;">Click to select...</span>';
+          return;
+        }
+
+        const items = raw
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s);
+        items.forEach((item) => {
+          const tag = document.createElement("div");
+          tag.className = "tag-item";
+          tag.textContent = item;
+          display.appendChild(tag);
+        });
+      }
+
+      /* =========================================
+   WEAPON ATTACK PICKER & CALCULATOR
+   ========================================= */
+      let currentWeaponInput = null; // Tracks which row opened the modal
+
+      // 1. Open the Modal
+      function openWeaponPicker(inputElement) {
+        currentWeaponInput = inputElement; // Remember the input element
+        const modal = document.getElementById("weaponPickerModal");
+        const list = document.getElementById("weaponPickerList");
+        const search = document.getElementById("weaponSearch");
+
+        search.value = ""; // Reset search
+        list.innerHTML = ""; // Clear list
+
+        // Populate List
+        Object.keys(dndWeaponsDB)
+          .sort()
+          .forEach((name) => {
+            const w = dndWeaponsDB[name];
+            const div = document.createElement("div");
+            div.className = "checklist-item";
+            div.style.justifyContent = "space-between";
+            div.innerHTML = `
+        <span style="font-weight:bold;">${name}</span>
+        <span style="font-size:0.8rem; color:var(--ink-light);">${w.dmg} ${w.dtype}</span>
+    `;
+            div.onclick = () => selectWeaponFromPicker(name);
+            list.appendChild(div);
+          });
+
+        modal.style.display = "flex";
+        search.focus();
+      }
+
+      // 2. Filter Function for Search
+      function filterWeaponPicker() {
+        const term = document
+          .getElementById("weaponSearch")
+          .value.toLowerCase();
+        const items = document.querySelectorAll(
+          "#weaponPickerList .checklist-item",
+        );
+        items.forEach((item) => {
+          const text = item.textContent.toLowerCase();
+          item.style.display = text.includes(term) ? "flex" : "none";
+        });
+      }
+
+      // 3. Close Modal
+      function closeWeaponPicker() {
+        document.getElementById("weaponPickerModal").style.display = "none";
+        currentWeaponInput = null;
+      }
+
+      // 4. Handle "Custom" Selection
+      function selectCustomWeapon() {
+        const term = document.getElementById("weaponSearch").value;
+        if (currentWeaponInput) {
+          currentWeaponInput.value = term || "Custom Weapon";
+          saveCharacter();
+        }
+        closeWeaponPicker();
+      }
+
+      // 5. THE MAGIC: Select & Calculate Stats
+      // 5. THE MAGIC: Select & Calculate Stats
+      function selectWeaponFromPicker(weaponName) {
+        if (!currentWeaponInput) return;
+
+        const weaponData = dndWeaponsDB[weaponName];
+        const row = currentWeaponInput.closest(".weapon-item");
+
+        // -- GET CHARACTER STATS --
+        const str = parseInt(document.getElementById("str").value) || 10;
+        const dex = parseInt(document.getElementById("dex").value) || 10;
+        const strMod = Math.floor((str - 10) / 2);
+        const dexMod = Math.floor((dex - 10) / 2);
+        const profBonus =
+          parseInt(document.getElementById("profBonus").value) || 2;
+
+        // -- DETERMINE ABILITY MODIFIER --
+        let abilityMod = strMod; // Default to Strength
+
+        // Finesse: Use higher of Str or Dex
+        if (weaponData.props.includes("Finesse")) {
+          abilityMod = Math.max(strMod, dexMod);
+        }
+        // Ranged (not thrown): Use Dex
+        else if (
+          weaponData.cat === "Ranged" &&
+          !weaponData.props.some((p) => p.includes("Thrown"))
+        ) {
+          abilityMod = dexMod;
+        }
+
+        // -- CHECK PROFICIENCY --
+        const profString = document.getElementById("weaponProfs").value || "";
+        let isProficient = false;
+
+        if (
+          weaponData.type === "Simple" &&
+          profString.includes("Simple Weapons")
+        )
+          isProficient = true;
+        if (
+          weaponData.type === "Martial" &&
+          profString.includes("Martial Weapons")
+        )
+          isProficient = true;
+        if (profString.includes(weaponName)) isProficient = true;
+
+        const totalAtk = abilityMod + (isProficient ? profBonus : 0);
+        const totalDmg = abilityMod;
+
+        // -- FORMATTING STRINGS --
+        const atkString = totalAtk >= 0 ? `+${totalAtk}` : `${totalAtk}`;
+        const dmgString = `${weaponData.dmg} ${totalDmg >= 0 ? "+" : ""}${totalDmg} ${weaponData.dtype}`;
+
+        // -- COMBINE PROPS & MASTERY --
+        // We create a copy of the props array so we don't modify the original DB
+        let finalNotes = [...weaponData.props];
+
+        if (weaponData.mastery) {
+          finalNotes.push(`Mastery: ${weaponData.mastery}`);
+        }
+
+        // -- FILL FIELDS --
+        currentWeaponInput.value = weaponName;
+        row.querySelector(".weapon-atk").value = atkString;
+        row.querySelector(".weapon-damage").value = dmgString;
+
+        // Join the combined array for the notes field
+        row.querySelector(".weapon-notes").value = finalNotes.join(", ");
+
+        saveCharacter();
+        closeWeaponPicker();
+      }
+
+      /* =========================================
+   WEAPON MASTERY MODAL LOGIC
+   ========================================= */
+      function openMasteryModal() {
+        document.getElementById("masteryModal").style.display = "flex";
+      }
+
+      function closeMasteryModal(e) {
+        // Allow closing by clicking the X button OR the background overlay
+        if (!e || e.target.id === "masteryModal") {
+          document.getElementById("masteryModal").style.display = "none";
+        }
+      }
+
       window.addWeapon = function () {
         const weaponList = document.getElementById("weapon-list");
         const newWeapon = document.createElement("div");
         newWeapon.className = "feature-box weapon-item";
         newWeapon.style.paddingRight = "40px";
         newWeapon.style.position = "relative";
+
+        // CHANGED: added onclick="openWeaponPicker(this)" and readonly to the name input
         newWeapon.innerHTML = `
-          <button class="delete-feature-btn" style="position: absolute; top: 5px; right: 5px; z-index:10; width: 24px; height: 24px;" onclick="this.closest('.weapon-item').remove(); saveCharacter();">&times;</button>
-          <div style="display: flex; flex-direction: column; gap: 10px;">
-              <div class="grid grid-3" style="margin-bottom: 0; gap: 10px;">
-                  <div class="field"><span class="field-label">Weapon Name</span><input type="text" class="weapon-name" placeholder="e.g. Longsword" /></div>
-                  <div class="field"><span class="field-label">Atk Bonus</span><input type="text" class="weapon-atk" placeholder="Proficiency Bonus + Ability Score Modifier" /></div>
-                  <div class="field"><span class="field-label">Damage</span><input type="text" class="weapon-damage" placeholder="Weapon Dice Damage + Ability Score Modifier + Other Bonus(es)" /></div>
+      <button class="delete-feature-btn" style="position: absolute; top: 5px; right: 5px; z-index:10; width: 24px; height: 24px;" onclick="this.closest('.weapon-item').remove(); saveCharacter();">&times;</button>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="grid grid-3" style="margin-bottom: 0; gap: 10px;">
+              <div class="field">
+                <span class="field-label">Weapon Name</span>
+                <input type="text" class="weapon-name" placeholder="Click to select..." onclick="openWeaponPicker(this)" readonly style="cursor: pointer; color: var(--red-dark); font-weight: bold;" />
               </div>
-              <div class="field"><span class="field-label">Notes</span><input type="text" class="weapon-notes" placeholder="Properties..." /></div>
+              <div class="field"><span class="field-label">Atk Bonus</span><input type="text" class="weapon-atk" placeholder="+0" /></div>
+              <div class="field"><span class="field-label">Damage</span><input type="text" class="weapon-damage" placeholder="1d6+0" /></div>
           </div>
-        `;
+          <div class="field"><span class="field-label">Notes</span><input type="text" class="weapon-notes" placeholder="Properties..." /></div>
+      </div>
+    `;
         weaponList.appendChild(newWeapon);
         newWeapon
           .querySelectorAll("input")
@@ -3959,6 +4949,7 @@
         renderSpellSlots();
         updateHpBar();
         calculateWeight();
+        renderWeaponTags();
         resizeAllTextareas();
       });
     </script>
