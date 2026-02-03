@@ -2089,6 +2089,43 @@
             style="min-height: 60px"
           ></textarea>
         </div>
+        <div
+          class="combat-stat"
+          onclick="openConditionModal()"
+          style="
+            cursor: pointer;
+            grid-column: 1 / -1;
+            height: auto;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+          "
+        >
+          <div class="combat-stat-label">Conditions</div>
+          <input
+            type="hidden"
+            id="activeConditionsInput"
+            onchange="renderConditionTags()"
+          />
+
+          <div
+            id="conditionsDisplay"
+            style="
+              font-size: 1.1rem;
+              color: var(--red-dark);
+              padding: 8px 16px;
+              font-weight: bold;
+              font-family: &quot;Crimson Text&quot;, serif;
+              font-style: italic;
+              white-space: normal;
+              line-height: 1.6;
+              text-align: center;
+            "
+          >
+            None
+          </div>
+        </div>
       </div>
 
       <h2 class="section-title">
@@ -2792,6 +2829,45 @@
           <button class="btn btn-secondary" onclick="selectCustomWeapon()">
             Use Custom Name
           </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="conditionModal" class="info-modal-overlay">
+      <div
+        class="info-modal-content"
+        style="
+          max-width: 500px;
+          max-height: 85vh;
+          display: flex;
+          flex-direction: column;
+        "
+      >
+        <button class="close-modal-btn" onclick="closeConditionModal()">
+          &times;
+        </button>
+        <h3 class="info-modal-title" style="text-align: center">Conditions</h3>
+
+        <div
+          id="conditionListContainer"
+          class="checklist-grid"
+          style="
+            grid-template-columns: 1fr;
+            flex: 1;
+            overflow-y: auto;
+            gap: 8px;
+          "
+        ></div>
+
+        <div
+          style="
+            text-align: center;
+            margin-top: 16px;
+            border-top: 1px solid var(--gold);
+            padding-top: 10px;
+          "
+        >
+          <button class="btn" onclick="closeConditionModal()">Done</button>
         </div>
       </div>
     </div>
@@ -3882,6 +3958,134 @@
       }
 
       /* =========================================
+         NEW: CONDITIONS SYSTEM
+         ========================================= */
+      const conditionsDB = {
+        Blinded:
+          "You can't see. Attacks against you have Advantage. Your attacks have Disadvantage.",
+        Charmed:
+          "You can't attack the charmer. The charmer has Advantage on social checks against you.",
+        Deafened: "You can't hear. You fail checks involving hearing.",
+        Exhaustion:
+          "Suffering from levels of exhaustion. 1: Disadv on checks. 2: Speed halved. 3: Disadv on attacks/saves. 4: HP max halved. 5: Speed 0. 6: Death.",
+        Frightened:
+          "Disadvantage on checks/attacks while source of fear is visible. Can't move closer to source.",
+        Grappled:
+          "Speed is 0. Ends if grappler is incapacitated or you are moved away.",
+        Incapacitated: "You can't take actions or reactions.",
+        Invisible:
+          "You can't be seen. You have Advantage on attacks. Attacks against you have Disadvantage.",
+        Paralyzed:
+          "Incapacitated. Can't move/speak. Auto-fail Str/Dex saves. Attacks against you have Advantage and are crits if within 5ft.",
+        Petrified:
+          "Transformed to stone. Incapacitated. Resistant to all damage. Immune to poison/disease.",
+        Poisoned: "Disadvantage on attack rolls and ability checks.",
+        Prone:
+          "Move at half speed. Attacks have Disadvantage. Melee attacks against you have Advantage; Ranged have Disadvantage.",
+        Restrained:
+          "Speed is 0. Attacks against you have Advantage. Your attacks have Disadvantage. Disadvantage on Dex saves.",
+        Stunned:
+          "Incapacitated. Can't move/speak. Fails Str/Dex saves. Attacks against you have Advantage.",
+        Unconscious:
+          "Incapacitated. Drop held items. Prone. Auto-fail Str/Dex saves. Attacks against you have Advantage and are crits if within 5ft.",
+      };
+
+      function openConditionModal() {
+        const container = document.getElementById("conditionListContainer");
+        container.innerHTML = "";
+
+        // Get currently active conditions
+        const currentVal = document.getElementById(
+          "activeConditionsInput",
+        ).value;
+        const activeList = currentVal ? currentVal.split(",") : [];
+
+        Object.keys(conditionsDB).forEach((name) => {
+          const desc = conditionsDB[name];
+          const div = document.createElement("div");
+          div.className = "checklist-item";
+          div.style.flexDirection = "column"; // Allow text to stack
+          div.style.alignItems = "flex-start";
+          div.style.padding = "10px";
+
+          // Checkbox + Title Row
+          const topRow = document.createElement("div");
+          topRow.style.display = "flex";
+          topRow.style.alignItems = "center";
+          topRow.style.gap = "10px";
+          topRow.style.width = "100%";
+          topRow.style.marginBottom = "4px";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.value = name;
+          checkbox.checked = activeList.includes(name);
+          checkbox.onchange = saveConditionsSelection; // Auto-save on click
+
+          const label = document.createElement("span");
+          label.style.fontWeight = "bold";
+          label.style.fontSize = "1rem";
+          label.textContent = name;
+
+          topRow.appendChild(checkbox);
+          topRow.appendChild(label);
+
+          // Description Text
+          const descText = document.createElement("div");
+          descText.style.fontSize = "0.85rem";
+          descText.style.color = "var(--ink-light)";
+          descText.style.marginLeft = "26px"; // Indent under text
+          descText.style.lineHeight = "1.4";
+          descText.textContent = desc;
+
+          div.appendChild(topRow);
+          div.appendChild(descText);
+
+          // Allow clicking the whole box to toggle
+          div.onclick = (e) => {
+            if (e.target !== checkbox) {
+              checkbox.checked = !checkbox.checked;
+              saveConditionsSelection();
+            }
+          };
+
+          container.appendChild(div);
+        });
+
+        document.getElementById("conditionModal").style.display = "flex";
+      }
+
+      function closeConditionModal() {
+        document.getElementById("conditionModal").style.display = "none";
+      }
+
+      function saveConditionsSelection() {
+        const checkboxes = document.querySelectorAll(
+          "#conditionListContainer input[type='checkbox']:checked",
+        );
+        const selected = Array.from(checkboxes).map((cb) => cb.value);
+
+        document.getElementById("activeConditionsInput").value =
+          selected.join(",");
+        renderConditionTags();
+        saveCharacter();
+      }
+
+      function renderConditionTags() {
+        const val = document.getElementById("activeConditionsInput").value;
+        const display = document.getElementById("conditionsDisplay");
+
+        if (!val) {
+          display.textContent = "None";
+          display.style.color = "var(--ink-light)";
+          return;
+        }
+
+        display.textContent = val.split(",").join(", ");
+        display.style.color = "var(--red)";
+      }
+
+      /* =========================================
    WEAPON PROFICIENCY MODAL LOGIC
    ========================================= */
       const weaponOptionsData = [
@@ -4632,6 +4836,8 @@
           tempHp: document.getElementById("tempHp").value,
           profBonus: document.getElementById("profBonus").value,
           hitDice: document.getElementById("hitDice").value,
+          activeConditions: document.getElementById("activeConditionsInput")
+            .value,
 
           weapons: Array.from(document.querySelectorAll(".weapon-item")).map(
             (item) => ({
@@ -4953,6 +5159,12 @@
                 .getElementById(`deathFailure${i}`)
                 ?.classList.toggle("checked", v),
             );
+          }
+
+          if (data.activeConditions) {
+            document.getElementById("activeConditionsInput").value =
+              data.activeConditions;
+            renderConditionTags();
           }
 
           // Lists
