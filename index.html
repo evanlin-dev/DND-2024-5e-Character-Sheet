@@ -3566,6 +3566,78 @@
 
         updateCombatStats();
         updateSpellDC();
+
+        // NEW: Update weapons whenever stats change
+        updateAllWeaponStats();
+      };
+
+      /* =========================================
+         NEW: AUTO-UPDATE WEAPON STATS
+         ========================================= */
+      window.updateAllWeaponStats = function () {
+        // 1. Get current stats
+        const str = parseInt(document.getElementById("str").value) || 10;
+        const dex = parseInt(document.getElementById("dex").value) || 10;
+        const strMod = Math.floor((str - 10) / 2);
+        const dexMod = Math.floor((dex - 10) / 2);
+        const profBonus =
+          parseInt(document.getElementById("profBonus").value) || 2;
+        const profString = document.getElementById("weaponProfs").value || "";
+
+        // 2. Loop through all weapon rows
+        document.querySelectorAll(".weapon-item").forEach((row) => {
+          const nameInput = row.querySelector(".weapon-name");
+          const weaponName = nameInput.value;
+          const weaponData = dndWeaponsDB[weaponName];
+
+          // If it's a custom name not in our DB, skip auto-update
+          if (!weaponData) return;
+
+          // 3. Determine Ability Modifier (Same logic as Picker)
+          let abilityMod = strMod; // Default to Strength
+
+          // Finesse: Use higher of Str or Dex
+          if (weaponData.props.includes("Finesse")) {
+            abilityMod = Math.max(strMod, dexMod);
+          }
+          // Ranged (not thrown): Use Dex
+          else if (
+            weaponData.cat === "Ranged" &&
+            !weaponData.props.some((p) => p.includes("Thrown"))
+          ) {
+            abilityMod = dexMod;
+          }
+
+          // 4. Check Proficiency
+          let isProficient = false;
+          if (
+            weaponData.type === "Simple" &&
+            profString.includes("Simple Weapons")
+          )
+            isProficient = true;
+          if (
+            weaponData.type === "Martial" &&
+            profString.includes("Martial Weapons")
+          )
+            isProficient = true;
+          if (profString.includes(weaponName)) isProficient = true;
+
+          // 5. Calculate Totals
+          const totalAtk = abilityMod + (isProficient ? profBonus : 0);
+          const totalDmg = abilityMod;
+
+          // 6. Format Strings
+          const atkString = totalAtk >= 0 ? `+${totalAtk}` : `${totalAtk}`;
+          // e.g. "1d8 +3 slashing" or "1d8 -1 slashing"
+          const dmgString = `${weaponData.dmg} ${totalDmg >= 0 ? "+" : ""}${totalDmg} ${weaponData.dtype}`;
+
+          // 7. Update Inputs
+          row.querySelector(".weapon-atk").value = atkString;
+          row.querySelector(".weapon-damage").value = dmgString;
+        });
+
+        // Save changes to local storage
+        saveCharacter();
       };
 
       function updateCombatStats() {
@@ -3940,6 +4012,9 @@
 
         // Update Visuals
         renderWeaponTags();
+
+        updateAllWeaponStats();
+
         saveCharacter(); // Trigger auto-save
         closeWeaponProfModal();
       }
