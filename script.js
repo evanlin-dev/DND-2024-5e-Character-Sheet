@@ -1052,6 +1052,18 @@
    window.openCurrencyModal = () => document.getElementById("currencyModal").style.display = "flex";
    window.closeCurrencyModal = (e) => { if (e.target.id === "currencyModal") document.getElementById("currencyModal").style.display = "none"; };
    
+   window.openXpTableModal = function () {
+     const container = document.getElementById("xpTableContent");
+     if (!container.innerHTML.trim()) {
+         let html = '<table class="currency-table"><thead><tr><th>Level</th><th>XP</th><th>Prof</th></tr></thead><tbody>';
+         xpTable.forEach(row => { html += `<tr><td>${row.lvl}</td><td>${row.xp.toLocaleString()}</td><td>+${row.prof}</td></tr>`; });
+         html += '</tbody></table>';
+         container.innerHTML = html;
+     }
+     document.getElementById("xpTableModal").style.display = "flex";
+   };
+   window.closeXpTableModal = (e) => { if (e.target.id === "xpTableModal") document.getElementById("xpTableModal").style.display = "none"; };
+   
    window.openScoreModal = function () {
      document.getElementById("scoreModal").style.display = "flex";
      abilities.forEach((stat) => { document.getElementById(`sa_${stat}`).value = ""; });

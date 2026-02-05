@@ -78,9 +78,10 @@
               margin-bottom: 6px;
             "
           >
-            <label class="field-label" style="margin-bottom: 0"
-              >Experience</label
-            >
+            <div style="display: flex; align-items: center; gap: 5px;">
+              <label class="field-label" style="margin-bottom: 0">Experience</label>
+              <span class="skill-info-btn" onclick="openXpTableModal()" style="width: 16px; height: 16px; font-size: 0.7rem; cursor: pointer;">?</span>
+            </div>
             <button type="button" id="addExpBtn" class="mini-btn">+</button>
           </div>
           <input type="number" id="experience" value="0" />
@@ -723,6 +724,15 @@
         <div style="display: flex; gap: 10px; justify-content: center">
           <button id="confirmExp" class="btn" style="padding: 8px 16px">Add</button>
           <button id="cancelExp" class="btn btn-secondary" style="padding: 8px 16px">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="xpTableModal" class="info-modal-overlay" onclick="closeXpTableModal(event)">
+      <div class="info-modal-content" style="max-width: 400px; max-height: 80vh; overflow-y: auto;">
+        <button class="close-modal-btn" onclick="document.getElementById('xpTableModal').style.display = 'none'">&times;</button>
+        <h3 class="info-modal-title" style="text-align: center">Leveling Thresholds</h3>
+        <div id="xpTableContent" class="info-modal-text">
         </div>
       </div>
     </div>
