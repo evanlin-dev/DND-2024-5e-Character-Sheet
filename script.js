@@ -415,40 +415,54 @@
    /* =========================================
       ITEM SEARCH (IndexedDB)
       ========================================= */
-   const DB_NAME = 'DndZipDB';
+   const DB_NAME = 'DndDataDB';
    const STORE_NAME = 'files';
    const DB_VERSION = 1;
 
    function openDB() {
        return new Promise((resolve, reject) => {
            const request = indexedDB.open(DB_NAME, DB_VERSION);
-           request.onerror = () => reject(request.error);
+           request.onerror = () => {
+               console.error("IndexedDB open error:", request.error);
+               reject(request.error);
+           };
            request.onsuccess = () => resolve(request.result);
            request.onupgradeneeded = (e) => {
+               console.log("IndexedDB upgrade needed");
                const db = e.target.result;
                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
            };
        });
    }
 
-   async function checkZipUploadStatus() {
+   async function checkDataUploadStatus() {
+       console.log("Checking data upload status...");
        try {
            const db = await openDB();
            const tx = db.transaction(STORE_NAME, 'readonly');
            const store = tx.objectStore(STORE_NAME);
            const req = store.get('currentData');
            req.onsuccess = () => {
+               const btnItems = document.getElementById('btn-search-items-data');
+               const btnCantrips = document.getElementById('btn-search-cantrips-data');
+               const btnSpells = document.getElementById('btn-search-spells-data');
+
                if (req.result) {
-                   console.log("Zip data found, showing search buttons.");
-                   const btnItems = document.getElementById('btn-search-items-zip');
-                   const btnCantrips = document.getElementById('btn-search-cantrips-zip');
-                   const btnSpells = document.getElementById('btn-search-spells-zip');
+                   console.log("Data found in IndexedDB. Showing search buttons.");
                    if (btnItems) btnItems.style.display = 'inline-block';
                    if (btnCantrips) btnCantrips.style.display = 'inline-block';
                    if (btnSpells) btnSpells.style.display = 'inline-block';
+               } else {
+                   console.log("No data found in IndexedDB. Hiding search buttons.");
+                   if (btnItems) btnItems.style.display = 'none';
+                   if (btnCantrips) btnCantrips.style.display = 'none';
+                   if (btnSpells) btnSpells.style.display = 'none';
                }
            };
-       } catch (e) { console.error("Error checking zip status:", e); }
+           req.onerror = (e) => {
+               console.error("Error reading from object store:", e);
+           };
+       } catch (e) { console.error("Error checking data status:", e); }
    }
 
    let allItemsCache = [];
@@ -474,7 +488,7 @@
            });
 
            if (!data) {
-               list.innerHTML = '<div style="padding:10px; color:#666; text-align:center;">No data found. Please upload a zip in Data Viewer.</div>';
+               list.innerHTML = '<div style="padding:10px; color:#666; text-align:center;">No data found. Please upload a file in Data Viewer.</div>';
                return;
            }
 
@@ -656,7 +670,7 @@
            });
 
            if (!data) {
-               list.innerHTML = '<div style="padding:10px; color:#666; text-align:center;">No data found. Please upload a zip in Data Viewer.</div>';
+               list.innerHTML = '<div style="padding:10px; color:#666; text-align:center;">No data found. Please upload a file in Data Viewer.</div>';
                return;
            }
 
@@ -1260,11 +1274,17 @@
       6. INITIALIZATION
       ========================================= */
    document.addEventListener("DOMContentLoaded", () => {
+     console.log("Script initialized.");
      // Guard clause: Only run initialization if we are on the character sheet (checking for charName input)
      if (!document.getElementById("charName")) return;
      
-     // Check for zip data immediately
-     checkZipUploadStatus();
+     // Check for data immediately
+     checkDataUploadStatus();
+     
+     // Re-check when tab becomes visible (e.g. returning from Data Viewer)
+     document.addEventListener("visibilitychange", () => {
+         if (document.visibilityState === "visible") checkDataUploadStatus();
+     });
 
      // XP Modal
      const expModal = document.getElementById("expModal");
