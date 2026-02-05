@@ -536,7 +536,10 @@
         </div>
         
         <div id="inventoryList" class="inventory-list" style="min-height: 60px"></div>
-        <button class="add-feature-btn" onclick="addInventoryItem()">+ Add Item</button>
+        <div style="display: flex; gap: 10px;">
+          <button class="add-feature-btn" onclick="addInventoryItem()">+ Add Custom</button>
+          <button id="btn-search-items-zip" class="add-feature-btn" onclick="openItemSearch()" style="display: none;">Search Items</button>
+        </div>
 
         <div class="total-weight-box" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end;">
           <div>Carrying Capacity: <span id="totalWeightVal">0</span> / <span id="maxWeightVal">150</span> lbs</div>
@@ -575,23 +578,29 @@
 
         <h3 class="section-title">Cantrips (Level 0)</h3>
         <div class="spell-list-header">
-          <span></span><span></span><span>Lvl</span><span>Name</span><span>Time</span><span>Range</span> <span title="Ritual">R</span><span title="Concentration">C</span><span title="Material">M</span><span></span>
+          <span></span><span></span><span>Lvl</span><span>Name</span><span>Time</span><span>Range</span> <span title="Ritual">R</span><span title="Concentration">C</span><span title="Material">M</span><span></span><span></span>
         </div>
         <div id="cantripList"></div>
-        <button class="add-feature-btn" onclick="addSpellRow('cantripList', 0)">+ Add Cantrip</button>
+        <div style="display: flex; gap: 10px;">
+            <button class="add-feature-btn" onclick="addSpellRow('cantripList', 0)">+ Add Custom</button>
+            <button id="btn-search-cantrips-zip" class="add-feature-btn" onclick="openSpellSearch('cantripList', 'cantrip')" style="display: none;">Search Cantrips</button>
+        </div>
 
         <h3 class="section-title" style="margin-top: 24px">Prepared Spells</h3>
         <div class="spell-list-header">
-          <span></span><span>Prep</span><span>Lvl</span><span>Name</span><span>Time</span><span>Range</span> <span title="Ritual">R</span><span title="Concentration">C</span><span title="Material">M</span><span></span>
+          <span></span><span>Prep</span><span>Lvl</span><span>Name</span><span>Time</span><span>Range</span> <span title="Ritual">R</span><span title="Concentration">C</span><span title="Material">M</span><span></span><span></span>
         </div>
         <div id="preparedSpellsList" class="spell-list-container" style="min-height: 40px; border: 1px dashed var(--gold); border-radius: 4px; padding: 4px;"></div>
 
         <h3 class="section-title" style="margin-top: 24px">Known Spells</h3>
         <div class="spell-list-header">
-          <span></span><span>Prep</span><span>Lvl</span><span>Name</span><span>Time</span><span>Range</span> <span title="Ritual">R</span><span title="Concentration">C</span><span title="Material">M</span><span></span>
+          <span></span><span>Prep</span><span>Lvl</span><span>Name</span><span>Time</span><span>Range</span> <span title="Ritual">R</span><span title="Concentration">C</span><span title="Material">M</span><span></span><span></span>
         </div>
         <div id="spellList" class="spell-list-container"></div>
-        <button class="add-feature-btn" onclick="addSpellRow('spellList', 1)">+ Add Spell</button>
+        <div style="display: flex; gap: 10px;">
+            <button class="add-feature-btn" onclick="addSpellRow('spellList', 1)">+ Add Custom</button>
+            <button id="btn-search-spells-zip" class="add-feature-btn" onclick="openSpellSearch('spellList', 'leveled')" style="display: none;">Search Spells</button>
+        </div>
       </div>
 
       <div class="tab-content" id="notes">
@@ -710,6 +719,38 @@
         <div style="margin-top: 10px; border-top: 1px solid var(--gold); padding-top: 10px; text-align: center;">
           <p style="font-size: 0.8rem; color: var(--ink-light); margin-bottom: 8px;">Don't see it? Add custom.</p>
           <button class="btn btn-secondary" onclick="selectCustomWeapon()">Use Custom Name</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="itemSearchModal" class="info-modal-overlay">
+      <div class="info-modal-content" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+        <button class="close-modal-btn" onclick="closeItemSearch()">&times;</button>
+        <h3 class="info-modal-title" style="text-align: center">Search Items from Zip</h3>
+        <div style="margin-bottom: 10px;">
+          <input type="text" id="itemSearchInput" placeholder="Search items..." onkeyup="filterItemSearch()" style="border: 1px solid var(--gold); padding: 8px; border-radius: 4px; width: 100%;"/>
+        </div>
+        <div id="itemSearchList" class="checklist-grid" style="grid-template-columns: 1fr; flex: 1; overflow-y: auto; gap: 8px;"></div>
+        <div id="itemSearchPagination" style="display: flex; justify-content: center; gap: 10px; margin-top: 10px; align-items: center; border-top: 1px solid var(--gold); padding-top: 10px;">
+            <button class="btn btn-secondary" onclick="changeItemSearchPage(-1)" style="padding: 4px 10px; font-size: 0.8rem;">Prev</button>
+            <span id="itemSearchPageInfo" style="font-family: 'Cinzel', serif; font-size: 0.9rem;">Page 1</span>
+            <button class="btn btn-secondary" onclick="changeItemSearchPage(1)" style="padding: 4px 10px; font-size: 0.8rem;">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="spellSearchModal" class="info-modal-overlay">
+      <div class="info-modal-content" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+        <button class="close-modal-btn" onclick="closeSpellSearch()">&times;</button>
+        <h3 class="info-modal-title" style="text-align: center">Search Spells from Zip</h3>
+        <div style="margin-bottom: 10px;">
+          <input type="text" id="spellSearchInput" placeholder="Search spells..." onkeyup="filterSpellSearch()" style="border: 1px solid var(--gold); padding: 8px; border-radius: 4px; width: 100%;"/>
+        </div>
+        <div id="spellSearchList" class="checklist-grid" style="grid-template-columns: 1fr; flex: 1; overflow-y: auto; gap: 8px;"></div>
+        <div id="spellSearchPagination" style="display: flex; justify-content: center; gap: 10px; margin-top: 10px; align-items: center; border-top: 1px solid var(--gold); padding-top: 10px;">
+            <button class="btn btn-secondary" onclick="changeSpellSearchPage(-1)" style="padding: 4px 10px; font-size: 0.8rem;">Prev</button>
+            <span id="spellSearchPageInfo" style="font-family: 'Cinzel', serif; font-size: 0.9rem;">Page 1</span>
+            <button class="btn btn-secondary" onclick="changeSpellSearchPage(1)" style="padding: 4px 10px; font-size: 0.8rem;">Next</button>
         </div>
       </div>
     </div>

@@ -411,7 +411,434 @@
      box.appendChild(header); box.appendChild(displayDiv); box.appendChild(textArea); box.appendChild(controls);
      overlay.appendChild(box); document.body.appendChild(overlay);
    };
+
+   /* =========================================
+      ITEM SEARCH (IndexedDB)
+      ========================================= */
+   const DB_NAME = 'DndZipDB';
+   const STORE_NAME = 'files';
+   const DB_VERSION = 1;
+
+   function openDB() {
+       return new Promise((resolve, reject) => {
+           const request = indexedDB.open(DB_NAME, DB_VERSION);
+           request.onerror = () => reject(request.error);
+           request.onsuccess = () => resolve(request.result);
+           request.onupgradeneeded = (e) => {
+               const db = e.target.result;
+               if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+           };
+       });
+   }
+
+   async function checkZipUploadStatus() {
+       try {
+           const db = await openDB();
+           const tx = db.transaction(STORE_NAME, 'readonly');
+           const store = tx.objectStore(STORE_NAME);
+           const req = store.get('currentData');
+           req.onsuccess = () => {
+               if (req.result) {
+                   console.log("Zip data found, showing search buttons.");
+                   const btnItems = document.getElementById('btn-search-items-zip');
+                   const btnCantrips = document.getElementById('btn-search-cantrips-zip');
+                   const btnSpells = document.getElementById('btn-search-spells-zip');
+                   if (btnItems) btnItems.style.display = 'inline-block';
+                   if (btnCantrips) btnCantrips.style.display = 'inline-block';
+                   if (btnSpells) btnSpells.style.display = 'inline-block';
+               }
+           };
+       } catch (e) { console.error("Error checking zip status:", e); }
+   }
+
+   let allItemsCache = [];
+   let currentSearchResults = [];
+   let itemSearchPage = 1;
+   const ITEMS_PER_PAGE = 50;
+
+   window.openItemSearch = async function() {
+       document.getElementById('itemSearchModal').style.display = 'flex';
+       document.getElementById('itemSearchInput').value = '';
+       const list = document.getElementById('itemSearchList');
+       list.innerHTML = '<div style="padding:10px; color:#666; text-align:center;">Loading items library...</div>';
+       document.getElementById('itemSearchPagination').style.display = 'none';
+       
+       try {
+           const db = await openDB();
+           const tx = db.transaction(STORE_NAME, 'readonly');
+           const store = tx.objectStore(STORE_NAME);
+           const data = await new Promise((resolve, reject) => {
+               const req = store.get('currentData');
+               req.onsuccess = () => resolve(req.result);
+               req.onerror = () => reject(req.error);
+           });
+
+           if (!data) {
+               list.innerHTML = '<div style="padding:10px; color:#666; text-align:center;">No data found. Please upload a zip in Data Viewer.</div>';
+               return;
+           }
+
+           const results = [];
+           data.forEach(file => {
+               try { 
+                   const json = JSON.parse(file.content);
+                   // Strict filtering: Only look in known item arrays to avoid monsters/spells/adventures
+                   const arraysToCheck = [json.item, json.items, json.baseitem, json.magicvariant, json.magicvariants, json.variant];
+                   arraysToCheck.forEach(arr => {
+                       if (Array.isArray(arr)) {
+                           arr.forEach(item => {
+                               if (item.name && typeof item.name === 'string') {
+                                   results.push(item);
+                               }
+                           });
+                       }
+                   });
+               } catch (e) {}
+           });
+
+           // Deduplicate by name
+           const uniqueResults = Array.from(new Map(results.map(item => [item.name, item])).values());
+           // Sort
+           uniqueResults.sort((a, b) => a.name.localeCompare(b.name));
+           
+           allItemsCache = uniqueResults;
+           currentSearchResults = allItemsCache;
+           itemSearchPage = 1;
+           
+           renderItemSearchPage();
+           document.getElementById('itemSearchInput').focus();
+
+       } catch (e) {
+           console.error(e);
+           list.innerHTML = '<div style="padding:10px; color:red; text-align:center;">Error loading database.</div>';
+       }
+   };
+
+   window.closeItemSearch = function() {
+       document.getElementById('itemSearchModal').style.display = 'none';
+   };
+
+   window.filterItemSearch = function() {
+       const term = document.getElementById('itemSearchInput').value.toLowerCase();
+       if (!term) {
+           currentSearchResults = allItemsCache;
+       } else {
+           currentSearchResults = allItemsCache.filter(item => item.name.toLowerCase().includes(term));
+       }
+       itemSearchPage = 1;
+       renderItemSearchPage();
+   };
+
+   window.changeItemSearchPage = function(delta) {
+       const maxPage = Math.ceil(currentSearchResults.length / ITEMS_PER_PAGE);
+       const newPage = itemSearchPage + delta;
+       if (newPage >= 1 && newPage <= maxPage) {
+           itemSearchPage = newPage;
+           renderItemSearchPage();
+           document.getElementById('itemSearchList').scrollTop = 0;
+       }
+   };
+
+   function renderItemSearchPage() {
+       const list = document.getElementById('itemSearchList');
+       const pagination = document.getElementById('itemSearchPagination');
+       const pageInfo = document.getElementById('itemSearchPageInfo');
+       
+       if (currentSearchResults.length === 0) {
+           list.innerHTML = '<div style="padding:10px; color:#666; text-align:center;">No matching items found.</div>';
+           pagination.style.display = 'none';
+           return;
+       }
+
+       pagination.style.display = 'flex';
+       const maxPage = Math.ceil(currentSearchResults.length / ITEMS_PER_PAGE);
+       pageInfo.textContent = `Page ${itemSearchPage} of ${maxPage}`;
+       
+       const startIndex = (itemSearchPage - 1) * ITEMS_PER_PAGE;
+       const itemsToShow = currentSearchResults.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+       
+       list.innerHTML = '';
+       
+       // Helper to clean 5e-tools style tags
+       const cleanText = (str) => {
+           if (!str) return "";
+           return str.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => {
+               if (!content) return "";
+               return content.split('|')[0];
+           });
+       };
+
+       itemsToShow.forEach(item => {
+           const div = document.createElement('div');
+           div.className = 'checklist-item';
+           div.style.flexDirection = 'column';
+           div.style.alignItems = 'flex-start';
+           
+           const weight = item.weight || item.weight_lbs || 0;
+           let desc = "";
+           
+           // Recursively extract text from entries array
+           const processEntries = (entries) => {
+               if (!entries) return "";
+               if (typeof entries === 'string') return entries;
+               if (!Array.isArray(entries)) return "";
+               
+               return entries.map(e => {
+                   if (!e) return "";
+                   if (typeof e === 'string') return e;
+                   
+                   let text = "";
+                   if (e.name && (e.type === 'section' || e.type === 'entries')) text += `${e.name}. `;
+                   
+                   if (e.entries) text += processEntries(e.entries);
+                   else if (e.items) text += processEntries(e.items);
+                   else if (e.entry) text += (typeof e.entry === 'string' ? e.entry : processEntries([e.entry]));
+                   else if (e.caption) text += e.caption;
+                   else if (e.text) text += e.text;
+                   
+                   return text;
+               }).join("\n");
+           };
+
+           if (item.entries) desc = processEntries(item.entries);
+           if (!desc && item.inherits && item.inherits.entries) desc = processEntries(item.inherits.entries);
+           if (!desc && item.description) desc = item.description;
+           if (!desc && item.text) desc = item.text;
+           
+           // Clean the description
+           desc = cleanText(desc);
+
+           // Format description for preview
+           let previewDesc = typeof desc === 'string' ? desc.replace(/<[^>]*>/g, '') : "See notes";
+           if (previewDesc.length > 80) previewDesc = previewDesc.substring(0, 80) + '...';
+
+           div.innerHTML = `
+               <div style="font-weight:bold; width:100%; display:flex; justify-content:space-between;">
+                   <span>${item.name}</span>
+                   <span style="font-size:0.8rem; color:var(--ink-light);">${weight} lbs</span>
+               </div>
+               <div style="font-size:0.8rem; color:var(--ink-light); margin-top:4px;">${previewDesc}</div>
+           `;
+           div.onclick = () => {
+               addInventoryItem(item.name, 1, weight, false, desc);
+               closeItemSearch();
+           };
+           list.appendChild(div);
+       });
+   }
    
+   /* =========================================
+      SPELL SEARCH (IndexedDB)
+      ========================================= */
+   let allSpellsCache = [];
+   let currentSpellResults = [];
+   let spellSearchPage = 1;
+   let spellTargetContainer = "";
+   let spellSearchFilterType = ""; // 'cantrip' or 'leveled'
+
+   window.openSpellSearch = async function(containerId, filterType) {
+       spellTargetContainer = containerId;
+       spellSearchFilterType = filterType;
+       document.getElementById('spellSearchModal').style.display = 'flex';
+       document.getElementById('spellSearchInput').value = '';
+       const list = document.getElementById('spellSearchList');
+       list.innerHTML = '<div style="padding:10px; color:#666; text-align:center;">Loading spells library...</div>';
+       document.getElementById('spellSearchPagination').style.display = 'none';
+
+       try {
+           const db = await openDB();
+           const tx = db.transaction(STORE_NAME, 'readonly');
+           const store = tx.objectStore(STORE_NAME);
+           const data = await new Promise((resolve, reject) => {
+               const req = store.get('currentData');
+               req.onsuccess = () => resolve(req.result);
+               req.onerror = () => reject(req.error);
+           });
+
+           if (!data) {
+               list.innerHTML = '<div style="padding:10px; color:#666; text-align:center;">No data found. Please upload a zip in Data Viewer.</div>';
+               return;
+           }
+
+           const results = [];
+           data.forEach(file => {
+               try { 
+                   const json = JSON.parse(file.content);
+                   const arraysToCheck = [json.spell, json.spells];
+                   arraysToCheck.forEach(arr => {
+                       if (Array.isArray(arr)) {
+                           arr.forEach(spell => {
+                               if (spell.name && typeof spell.name === 'string') {
+                                   // Filter based on type
+                                   if (spellSearchFilterType === 'cantrip' && spell.level === 0) {
+                                       results.push(spell);
+                                   } else if (spellSearchFilterType === 'leveled' && spell.level > 0) {
+                                       results.push(spell);
+                                   }
+                               }
+                           });
+                       }
+                   });
+               } catch (e) {}
+           });
+
+           // Deduplicate
+           const uniqueResults = Array.from(new Map(results.map(s => [s.name + s.source, s])).values());
+           uniqueResults.sort((a, b) => a.name.localeCompare(b.name));
+           
+           allSpellsCache = uniqueResults;
+           currentSpellResults = allSpellsCache;
+           spellSearchPage = 1;
+           
+           renderSpellSearchPage();
+           document.getElementById('spellSearchInput').focus();
+
+       } catch (e) {
+           console.error(e);
+           list.innerHTML = '<div style="padding:10px; color:red; text-align:center;">Error loading database.</div>';
+       }
+   };
+
+   window.closeSpellSearch = function() {
+       document.getElementById('spellSearchModal').style.display = 'none';
+   };
+
+   window.filterSpellSearch = function() {
+       const term = document.getElementById('spellSearchInput').value.toLowerCase();
+       if (!term) {
+           currentSpellResults = allSpellsCache;
+       } else {
+           currentSpellResults = allSpellsCache.filter(s => s.name.toLowerCase().includes(term));
+       }
+       spellSearchPage = 1;
+       renderSpellSearchPage();
+   };
+
+   window.changeSpellSearchPage = function(delta) {
+       const maxPage = Math.ceil(currentSpellResults.length / ITEMS_PER_PAGE);
+       const newPage = spellSearchPage + delta;
+       if (newPage >= 1 && newPage <= maxPage) {
+           spellSearchPage = newPage;
+           renderSpellSearchPage();
+           document.getElementById('spellSearchList').scrollTop = 0;
+       }
+   };
+
+   function renderSpellSearchPage() {
+       const list = document.getElementById('spellSearchList');
+       const pagination = document.getElementById('spellSearchPagination');
+       const pageInfo = document.getElementById('spellSearchPageInfo');
+       
+       if (currentSpellResults.length === 0) {
+           list.innerHTML = '<div style="padding:10px; color:#666; text-align:center;">No matching spells found.</div>';
+           pagination.style.display = 'none';
+           return;
+       }
+
+       pagination.style.display = 'flex';
+       const maxPage = Math.ceil(currentSpellResults.length / ITEMS_PER_PAGE);
+       pageInfo.textContent = `Page ${spellSearchPage} of ${maxPage}`;
+       
+       const startIndex = (spellSearchPage - 1) * ITEMS_PER_PAGE;
+       const spellsToShow = currentSpellResults.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+       
+       list.innerHTML = '';
+       spellsToShow.forEach(spell => {
+           const div = document.createElement('div');
+           div.className = 'checklist-item';
+           div.style.flexDirection = 'column';
+           div.style.alignItems = 'flex-start';
+           
+           const levelStr = spell.level === 0 ? "Cantrip" : `Level ${spell.level}`;
+           const school = spell.school ? spell.school.toUpperCase() : "";
+           
+           div.innerHTML = `
+               <div style="font-weight:bold; width:100%; display:flex; justify-content:space-between;">
+                   <span>${spell.name}</span>
+                   <span style="font-size:0.8rem; color:var(--ink-light);">${levelStr} ${school ? '('+school+')' : ''}</span>
+               </div>
+           `;
+           div.onclick = () => {
+               // Map 5e-tools data to our format
+               let time = "";
+               let desc = "";
+
+               // Helper to clean 5e-tools style tags
+               const cleanText = (str) => {
+                   if (!str) return "";
+                   return str.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => {
+                       if (!content) return "";
+                       return content.split('|')[0];
+                   });
+               };
+
+               // Recursively extract text from entries array
+               const processEntries = (entries) => {
+                   if (!entries) return "";
+                   if (typeof entries === 'string') return entries;
+                   if (!Array.isArray(entries)) return "";
+                   
+                   return entries.map(e => {
+                       if (!e) return "";
+                       if (typeof e === 'string') return e;
+                       
+                       let text = "";
+                       if (e.name && (e.type === 'section' || e.type === 'entries')) text += `${e.name}. `;
+                       
+                       if (e.entries) text += processEntries(e.entries);
+                       else if (e.items) text += processEntries(e.items);
+                       else if (e.entry) text += (typeof e.entry === 'string' ? e.entry : processEntries([e.entry]));
+                       else if (e.caption) text += e.caption;
+                       else if (e.text) text += e.text;
+                       
+                       return text;
+                   }).join("\n");
+               };
+
+               if (spell.entries) desc = processEntries(spell.entries);
+               else if (spell.description) desc = spell.description;
+               desc = cleanText(desc);
+
+               if (spell.time && spell.time[0]) {
+                   const t = spell.time[0];
+                   time = `${t.number} ${t.unit}`;
+               }
+               
+               let range = "";
+               if (spell.range) {
+                   if (spell.range.distance) {
+                        range = `${spell.range.distance.amount ? spell.range.distance.amount + ' ' : ''}${spell.range.distance.type}`;
+                   } else {
+                       range = spell.range.type;
+                   }
+               }
+
+               let concentration = false;
+               if (spell.duration && spell.duration[0] && spell.duration[0].concentration) concentration = true;
+
+               let ritual = spell.meta && spell.meta.ritual ? true : false;
+               
+               let material = false;
+               if (spell.components && (spell.components.m || spell.components.M)) material = true;
+
+               const spellData = {
+                   name: spell.name,
+                   level: spell.level,
+                   time: time,
+                   range: range,
+                   ritual: ritual,
+                   concentration: concentration,
+                   material: material,
+                   description: desc
+               };
+               
+               addSpellRow(spellTargetContainer, spell.level, spellData);
+               closeSpellSearch();
+           };
+           list.appendChild(div);
+       });
+   }
+
    /* =========================================
       4. WEAPONS, CONDITIONS, MODALS
       ========================================= */
@@ -441,13 +868,6 @@
      renderConditionTags();
      saveCharacter();
    }
-   window.renderConditionTags = function() {
-     const val = document.getElementById("activeConditionsInput").value;
-     const display = document.getElementById("conditionsDisplay");
-     if (!val) { display.textContent = "None"; display.style.color = "var(--ink-light)"; return; }
-     display.textContent = val.split(",").join(", "); display.style.color = "var(--red)";
-   };
-   
    window.openWeaponProfModal = function () {
      const currentVal = document.getElementById("weaponProfs").value;
      const currentArray = currentVal ? currentVal.split(",").map((s) => s.trim()) : [];
@@ -582,7 +1002,7 @@
      const rChecked = data && data.ritual ? "checked" : "";
      const cChecked = data && data.concentration ? "checked" : "";
      const mChecked = data && data.material ? "checked" : "";
-     row.innerHTML = `<div class="drag-handle">☰</div><div style="display:flex; justify-content:center;"><input type="checkbox" class="spell-check spell-prep" ${isPrep ? "checked" : ""} style="${prepVisibility}"></div><input type="number" class="spell-input spell-lvl" value="${lvl}" placeholder="Lvl" style="text-align:center;"><input type="text" class="spell-input spell-name" value="${data ? data.name : ""}" placeholder="Spell Name"><input type="text" class="spell-input spell-time" value="${data ? data.time : ""}" placeholder="1 Act"><input type="text" class="spell-input spell-range" value="${data ? data.range : ""}" placeholder="60 ft"><input type="checkbox" class="spell-check spell-ritual" title="Ritual" ${rChecked}><input type="checkbox" class="spell-check spell-conc" title="Concentration" ${cChecked}><input type="checkbox" class="spell-check spell-mat" title="Material" ${mChecked}><button class="delete-feature-btn" onclick="this.parentElement.remove(); saveCharacter()">×</button>`;
+     row.innerHTML = `<div class="drag-handle">☰</div><div style="display:flex; justify-content:center;"><input type="checkbox" class="spell-check spell-prep" ${isPrep ? "checked" : ""} style="${prepVisibility}"></div><input type="number" class="spell-input spell-lvl" value="${lvl}" placeholder="Lvl" style="text-align:center;"><input type="text" class="spell-input spell-name" value="${data ? data.name : ""}" placeholder="Spell Name"><input type="text" class="spell-input spell-time" value="${data ? data.time : ""}" placeholder="1 Act"><input type="text" class="spell-input spell-range" value="${data ? data.range : ""}" placeholder="60 ft"><input type="checkbox" class="spell-check spell-ritual" title="Ritual" ${rChecked}><input type="checkbox" class="spell-check spell-conc" title="Concentration" ${cChecked}><input type="checkbox" class="spell-check spell-mat" title="Material" ${mChecked}><input type="hidden" class="spell-desc" value="${data && data.description ? data.description.replace(/"/g, '&quot;') : ""}"><span class="skill-info-btn" onclick="showSpellInfo(this)" style="cursor:pointer; font-size:0.8rem;">?</span><button class="delete-feature-btn" onclick="this.parentElement.remove(); saveCharacter()">×</button>`;
      
      const prepBox = row.querySelector(".spell-prep");
      if (!isCantrip) {
@@ -594,6 +1014,15 @@
      row.querySelectorAll("input").forEach((input) => input.addEventListener("input", saveCharacter));
      container.appendChild(row);
      setupDragItem(row, containerId); saveCharacter();
+   };
+
+   window.showSpellInfo = function(btn) {
+       const row = btn.closest('.spell-row');
+       const name = row.querySelector('.spell-name').value;
+       const desc = row.querySelector('.spell-desc').value;
+       document.getElementById("infoModalTitle").textContent = name || "Spell Description";
+       document.getElementById("infoModalText").innerHTML = desc ? desc.replace(/\n/g, '<br>') : "No description available.";
+       document.getElementById("infoModal").style.display = "flex";
    };
    
    // Modals Generic
@@ -757,6 +1186,7 @@
          ritual: row.querySelector(".spell-ritual").checked,
          concentration: row.querySelector(".spell-conc").checked,
          material: row.querySelector(".spell-mat").checked,
+         description: row.querySelector(".spell-desc").value,
        })),
        preparedSpellsList: Array.from(document.querySelectorAll("#preparedSpellsList .spell-row")).map((row) => ({
          level: row.querySelector(".spell-lvl").value,
@@ -766,6 +1196,7 @@
          ritual: row.querySelector(".spell-ritual").checked,
          concentration: row.querySelector(".spell-conc").checked,
          material: row.querySelector(".spell-mat").checked,
+         description: row.querySelector(".spell-desc").value,
          prepared: true,
        })),
        spellsList: Array.from(document.querySelectorAll("#spellList .spell-row")).map((row) => ({
@@ -776,6 +1207,7 @@
          ritual: row.querySelector(".spell-ritual").checked,
          concentration: row.querySelector(".spell-conc").checked,
          material: row.querySelector(".spell-mat").checked,
+         description: row.querySelector(".spell-desc").value,
          prepared: false,
        })),
        languages: document.getElementById("languages").value,
@@ -830,6 +1262,9 @@
    document.addEventListener("DOMContentLoaded", () => {
      // Guard clause: Only run initialization if we are on the character sheet (checking for charName input)
      if (!document.getElementById("charName")) return;
+     
+     // Check for zip data immediately
+     checkZipUploadStatus();
 
      // XP Modal
      const expModal = document.getElementById("expModal");
