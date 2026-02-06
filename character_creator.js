@@ -17,6 +17,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let allBackgrounds = [];
     let selectedBackground = null;
     let allSpecies = [];
+    let allSubraces = [];
+    let selectedSubrace = null;
+    let selectedSpeciesOption = null;
+    let selectedSpeciesOptionFeature = null;
     let selectedSpecies = null;
     let allMasteryProperties = {};
 
@@ -253,6 +257,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         if (json.race && Array.isArray(json.race)) {
                             for (const r of json.race) allSpecies.push(r);
+                        }
+                        if (json.subrace && Array.isArray(json.subrace)) {
+                            for (const s of json.subrace) allSubraces.push(s);
                         }
                         
                         // Robust spell loading with enrichment
@@ -2264,11 +2271,148 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSpeciesInfo() {
         const container = document.getElementById('creator-species-info');
+        container.innerHTML = '';
+        selectedSubrace = null;
+        selectedSpeciesOption = null;
+        selectedSpeciesOptionFeature = null;
+
         if (!selectedSpecies) return;
+
         const candidates = allSpecies.filter(r => r.name === selectedSpecies);
         let race = candidates.find(r => r.source === 'XPHB') || candidates.find(r => r.source === 'PHB') || candidates[0];
         if (race && race._copy && !race.entries) { const orig = allSpecies.find(r => r.name === race._copy.name); if(orig) race = {...orig, ...race, entries: orig.entries}; }
-        if (race && race.entries) { let desc = processEntries(race.entries); desc = desc.replace(/{@\w+\s*([^}]+)?}/g, (m, c) => c ? c.split('|')[0] : ""); container.innerHTML = desc; }
+        
+        if (race) {
+            // 1. Render Main Description
+            if (race.entries) {
+                let desc = processEntries(race.entries);
+                desc = desc.replace(/{@\w+\s*([^}]+)?}/g, (m, c) => c ? c.split('|')[0] : "");
+                container.innerHTML = desc;
+            }
+
+            // 2. Check for Subraces (Legacy/2014)
+            const subraces = allSubraces.filter(sr => sr.raceName === race.name && (sr.raceSource === race.source || !sr.raceSource));
+            
+            if (subraces.length > 0) {
+                const subDiv = document.createElement('div');
+                subDiv.style.marginTop = "15px";
+                subDiv.style.padding = "10px";
+                subDiv.style.border = "1px solid var(--gold)";
+                subDiv.style.borderRadius = "4px";
+                subDiv.style.background = "rgba(255,255,255,0.5)";
+
+                subDiv.innerHTML = `<div style="font-weight:bold; margin-bottom:5px;">Choose Subrace:</div>`;
+                const select = document.createElement('select');
+                select.className = 'styled-select';
+                select.style.width = '100%';
+                select.innerHTML = `<option value="" disabled selected>Select Subrace</option>` + 
+                                   subraces.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+                
+                const subDescDiv = document.createElement('div');
+                subDescDiv.style.marginTop = "10px";
+                subDescDiv.style.fontSize = "0.9rem";
+
+                select.addEventListener('change', () => {
+                    const sName = select.value;
+                    selectedSubrace = subraces.find(s => s.name === sName);
+                    if (selectedSubrace && selectedSubrace.entries) {
+                        let sDesc = processEntries(selectedSubrace.entries);
+                        sDesc = sDesc.replace(/{@\w+\s*([^}]+)?}/g, (m, c) => c ? c.split('|')[0] : "");
+                        subDescDiv.innerHTML = `<strong>${sName}:</strong> ${sDesc}`;
+                    } else {
+                        subDescDiv.innerHTML = "";
+                    }
+                });
+
+                subDiv.appendChild(select);
+                subDiv.appendChild(subDescDiv);
+                container.appendChild(subDiv);
+            }
+
+            // 3. Check for Internal Choices (2024 Lineages/Legacies)
+            // Look for specific feature names that imply a choice table/list
+            const choiceFeatures = [
+                { name: "Fiendish Legacy", type: "table", nameCol: 0, descCol: 1 },
+                { name: "Elven Lineage", type: "table", nameCol: 0, descCol: 1 },
+                { name: "Gnomish Lineage", type: "list" },
+                { name: "Draconic Ancestry", type: "table", nameCol: 0, descCol: 1 },
+                { name: "Giant Ancestry", type: "list" }
+            ];
+
+            const findFeature = (entries) => {
+                if (!entries) return null;
+                for (const entry of entries) {
+                    if (entry.name && choiceFeatures.some(cf => entry.name === cf.name || entry.name.startsWith(cf.name))) {
+                        const cf = choiceFeatures.find(c => entry.name === c.name || entry.name.startsWith(c.name));
+                        // Find the table or list inside
+                        if (cf.type === 'table') {
+                            const table = entry.entries.find(e => e.type === 'table');
+                            if (table && table.rows) return { feature: cf, data: table.rows, type: 'table' };
+                        } else if (cf.type === 'list') {
+                            const list = entry.entries.find(e => e.type === 'list');
+                            if (list && list.items) return { feature: cf, data: list.items, type: 'list' };
+                        }
+                    }
+                    if (entry.entries) {
+                        const found = findFeature(entry.entries);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            };
+
+            const found = findFeature(race.entries);
+            if (found) {
+                const choiceDiv = document.createElement('div');
+                choiceDiv.style.marginTop = "15px";
+                choiceDiv.style.padding = "10px";
+                choiceDiv.style.border = "1px solid var(--gold)";
+                choiceDiv.style.borderRadius = "4px";
+                choiceDiv.style.background = "rgba(255,255,255,0.5)";
+
+                choiceDiv.innerHTML = `<div style="font-weight:bold; margin-bottom:5px;">Choose ${found.feature.name}:</div>`;
+                const select = document.createElement('select');
+                select.className = 'styled-select';
+                select.style.width = '100%';
+                
+                let options = [];
+                if (found.type === 'table') {
+                    options = found.data.map(row => ({
+                        name: row[found.feature.nameCol].replace(/{@\w+\s*([^}]+)?}/g, "$1"),
+                        desc: row[found.feature.descCol] ? row[found.feature.descCol].replace(/{@\w+\s*([^}]+)?}/g, "$1") : ""
+                    }));
+                } else {
+                    options = found.data.map(item => ({
+                        name: item.name.replace(/\(.*\)/, '').trim(),
+                        desc: item.entry || (item.entries ? item.entries.join(' ') : "")
+                    }));
+                }
+
+                select.innerHTML = `<option value="" disabled selected>Select Option</option>` + 
+                                   options.map(o => `<option value="${o.name}">${o.name}</option>`).join('');
+
+                const optDescDiv = document.createElement('div');
+                optDescDiv.style.marginTop = "10px";
+                optDescDiv.style.fontSize = "0.9rem";
+
+                select.addEventListener('change', () => {
+                    const val = select.value;
+                    selectedSpeciesOption = val;
+                    const opt = options.find(o => o.name === val);
+                    if (opt) {
+                        selectedSpeciesOptionFeature = {
+                            title: `${found.feature.name}: ${opt.name}`,
+                            desc: opt.desc
+                        };
+                        optDescDiv.innerHTML = `<strong>${opt.name}:</strong> ${opt.desc}`;
+                    }
+                });
+
+                choiceDiv.appendChild(select);
+                choiceDiv.appendChild(optDescDiv);
+                container.appendChild(choiceDiv);
+            }
+        }
     }
 
     function renderAbilityScoreSection() {
@@ -2587,7 +2731,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!text) return "";
             let clean = text;
             // 1. Replace 5e-tools tags {@tag content|...} -> content
-            clean = clean.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+            clean = clean.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => {
+                if (!content) return "";
+                return content.split('|')[0];
+            });
             // 2. Replace breaks with newlines
             clean = clean.replace(/<br\s*\/?>/gi, '\n');
             // 3. Replace list items
@@ -2601,6 +2748,26 @@ document.addEventListener('DOMContentLoaded', () => {
             clean = clean.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ');
             return clean.trim();
         };
+
+        // Initialize Proficiencies & Details
+        const skillProficiency = {};
+        let toolProfs = [];
+        let weaponProfs = [];
+        let armorLight = false;
+        let armorMedium = false;
+        let armorHeavy = false;
+        let armorShield = false;
+        let spellAbility = "";
+        let spellSlotsData = [];
+
+        // Capture Class Skills from Dropdowns
+        document.querySelectorAll('.skill-select-dropdown').forEach(sel => {
+            if (sel.value) {
+                // Convert "Animal Handling" -> "animal_handling"
+                const key = sel.value.toLowerCase().replace(/ /g, '_');
+                skillProficiency[key] = true;
+            }
+        });
 
         // Class Features
         const classFeats = allClassFeatures.filter(f => 
@@ -2631,9 +2798,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     desc: `You gain proficiency in the ${skill.charAt(0).toUpperCase() + skill.slice(1)} skill.`,
                     type: 'class'
                 });
-                // Note: Skill proficiency boolean update is not handled here as charData structure 
-                // for skills is complex and usually handled by the sheet logic after load.
-                // The feature description serves as the record.
+                const key = skill.toLowerCase().replace(/ /g, '_');
+                skillProficiency[key] = true;
             } else if (name.startsWith("ASI Level ")) {
                 const featName = name.substring(name.indexOf(':') + 2);
                 const candidates = allFeats.filter(f => f.name === featName);
@@ -2663,14 +2829,167 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+        
+        // Subrace Features
+        if (selectedSubrace && selectedSubrace.entries) {
+            let desc = processEntries(selectedSubrace.entries);
+            features.push({ title: `Subrace: ${selectedSubrace.name}`, desc: cleanText(desc), type: 'race' });
+        }
+
+        // Lineage/Legacy Choice Features
+        if (selectedSpeciesOptionFeature) {
+            features.push({ title: selectedSpeciesOptionFeature.title, desc: cleanText(selectedSpeciesOptionFeature.desc), type: 'race' });
+        }
 
         // Background Features
         const bgCandidates = allBackgrounds.filter(b => b.name === selectedBackground);
         let bg = bgCandidates.find(b => b.source === 'XPHB') || bgCandidates[0];
-        if (bg && bg.entries) {
-             let desc = processEntries(bg.entries);
-             features.push({ title: "Background Feature", desc: cleanText(desc), type: 'background' });
+        if (bg) {
+            if (bg.entries) {
+                 let desc = processEntries(bg.entries);
+                 features.push({ title: "Background Feature", desc: cleanText(desc), type: 'background' });
+            }
+            // Background Skills
+            if (bg.skillProficiencies) {
+                bg.skillProficiencies.forEach(entry => {
+                    Object.keys(entry).forEach(k => { 
+                        if (k !== 'choose') {
+                            const key = k.toLowerCase().replace(/ /g, '_');
+                            skillProficiency[key] = true; 
+                        }
+                    });
+                });
+            }
+            // Background Tools
+            if (bg.toolProficiencies) {
+                bg.toolProficiencies.forEach(entry => {
+                    Object.keys(entry).forEach(k => { if (k !== 'choose') toolProfs.push(k); });
+                });
+            }
         }
+
+        // --- Proficiencies, Spellcasting, and Details ---
+        // (Variables initialized at top of function)
+
+        if (clsObj) {
+            // Proficiencies
+            if (clsObj.startingProficiencies) {
+                if (clsObj.startingProficiencies.armor) {
+                    clsObj.startingProficiencies.armor.forEach(a => {
+                        const aName = (typeof a === 'string' ? a : a.proficiency).toLowerCase();
+                        if (aName === 'light') armorLight = true;
+                        if (aName === 'medium') armorMedium = true;
+                        if (aName === 'heavy') armorHeavy = true;
+                        if (aName === 'shields') armorShield = true;
+                    });
+                }
+                if (clsObj.startingProficiencies.weapons) {
+                    clsObj.startingProficiencies.weapons.forEach(w => {
+                        const wName = (typeof w === 'string' ? w : w.proficiency);
+                        if (wName.toLowerCase() === 'simple') weaponProfs.push("Simple Weapons");
+                        else if (wName.toLowerCase() === 'martial') weaponProfs.push("Martial Weapons");
+                        else weaponProfs.push(wName);
+                    });
+                }
+                if (clsObj.startingProficiencies.tools) {
+                    clsObj.startingProficiencies.tools.forEach(t => {
+                        toolProfs.push(typeof t === 'string' ? t : t.name || t.proficiency);
+                    });
+                }
+            }
+
+            // Spellcasting Ability
+            if (clsObj.spellcastingAbility) {
+                spellAbility = clsObj.spellcastingAbility;
+            }
+
+            // Spell Slots
+            if (clsObj.classTableGroups) {
+                const slotGroup = clsObj.classTableGroups.find(g => g.title === "Spell Slots per Spell Level");
+                if (slotGroup && slotGroup.rows && slotGroup.rows[selectedLevel - 1]) {
+                    const row = slotGroup.rows[selectedLevel - 1];
+                    slotGroup.colLabels.forEach((label, idx) => {
+                        const lvlMatch = label.match(/(\d+)/);
+                        if (lvlMatch) {
+                            const lvl = parseInt(lvlMatch[1]);
+                            const val = row[idx];
+                            const total = parseInt(val);
+                            if (!isNaN(total) && total > 0) {
+                                spellSlotsData.push({ level: lvl, total: total, used: 0 });
+                            }
+                        }
+                    });
+                }
+                // Warlock / Pact Magic
+                if (spellSlotsData.length === 0) {
+                     let slotsCount = 0;
+                     let slotLevel = 0;
+                     clsObj.classTableGroups.forEach(g => {
+                         if (!g.colLabels) return;
+                         const slotsIdx = g.colLabels.findIndex(l => l.includes("Spell Slots"));
+                         const levelIdx = g.colLabels.findIndex(l => l.includes("Slot Level"));
+                         if (slotsIdx !== -1 && g.rows[selectedLevel - 1]) {
+                             slotsCount = parseInt(g.rows[selectedLevel - 1][slotsIdx]) || 0;
+                         }
+                         if (levelIdx !== -1 && g.rows[selectedLevel - 1]) {
+                             const lvlStr = g.rows[selectedLevel - 1][levelIdx];
+                             slotLevel = parseInt(lvlStr) || 0;
+                         }
+                     });
+                     if (slotsCount > 0 && slotLevel > 0) {
+                         spellSlotsData.push({ level: slotLevel, total: slotsCount, used: 0 });
+                     }
+                }
+            }
+        }
+
+        // Spells List Processing
+        const cantripsList = [];
+        const spellsList = [];
+
+        selectedSpells.forEach(sName => {
+            const candidates = allSpells.filter(s => s.name === sName);
+            let spell = candidates.find(s => s.source === 'XPHB') || candidates.find(s => s.source === 'PHB') || candidates[0];
+            
+            if (spell) {
+                let time = "";
+                if (spell.time && spell.time[0]) {
+                    time = `${spell.time[0].number} ${spell.time[0].unit}`;
+                }
+                
+                let range = "";
+                if (spell.range) {
+                    if (spell.range.distance) {
+                         range = `${spell.range.distance.amount ? spell.range.distance.amount + ' ' : ''}${spell.range.distance.type}`;
+                    } else {
+                        range = spell.range.type;
+                    }
+                }
+
+                let desc = processEntries(spell.entries);
+                desc = cleanText(desc);
+
+                const spellData = {
+                    name: spell.name,
+                    level: spell.level,
+                    time: time,
+                    range: range,
+                    ritual: spell.meta && spell.meta.ritual ? true : false,
+                    concentration: spell.duration && spell.duration[0] && spell.duration[0].concentration ? true : false,
+                    material: spell.components && (spell.components.m || spell.components.M) ? true : false,
+                    description: desc,
+                    prepared: false
+                };
+
+                if (spell.level === 0) {
+                    cantripsList.push(spellData);
+                } else {
+                    spellsList.push(spellData);
+                }
+            } else {
+                spellsList.push({ name: sName, level: 1, prepared: false });
+            }
+        });
 
         const charData = {
             charID: crypto.randomUUID(),
@@ -2694,7 +3013,17 @@ document.addEventListener('DOMContentLoaded', () => {
             raceFeatures: features.filter(f => f.type === 'race'),
             backgroundFeatures: features.filter(f => f.type === 'background'),
             feats: features.filter(f => f.type === 'feat'),
-            spellsList: Array.from(selectedSpells).map(s => ({ name: s, level: 1, prepared: false })) // Simplified spell mapping
+            
+            skillProficiency,
+            // New Fields
+            armorLight, armorMedium, armorHeavy, armorShield,
+            weaponProfs: weaponProfs.join(", "),
+            toolProfs: toolProfs.join(", "),
+            spellAbility,
+            spellSlotsData,
+            cantripsList,
+            spellsList,
+            preparedSpellsList: []
         };
 
         localStorage.setItem('dndCharacter', JSON.stringify(charData));
