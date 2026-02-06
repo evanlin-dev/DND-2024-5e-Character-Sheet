@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // DB Setup
     const DB_NAME = 'DndDataDB';
     const STORE_NAME = 'files';
-    const DB_VERSION = 5;
+    const DB_VERSION = 7;
 
     // Helper to process entries recursively
     const processEntries = (entries) => {
@@ -65,10 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
             request.onupgradeneeded = (e) => {
                 console.log(`[DB] Upgrade needed: ${e.oldVersion} -> ${e.newVersion}`);
                 const db = e.target.result;
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    console.log(`[DB] Creating object store: ${STORE_NAME}`);
-                    db.createObjectStore(STORE_NAME);
+                if (db.objectStoreNames.contains(STORE_NAME)) {
+                    console.log(`[DB] Deleting old object store: ${STORE_NAME}`);
+                    db.deleteObjectStore(STORE_NAME);
                 }
+                console.log(`[DB] Creating object store: ${STORE_NAME}`);
+                db.createObjectStore(STORE_NAME);
             };
         });
     }

@@ -870,16 +870,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const DB_NAME = 'DndDataDB';
     const STORE_NAME = 'files';
-    const DB_VERSION = 4;
+    const DB_VERSION = 7;
 
     function openDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
             request.onerror = () => reject(request.error);
             request.onsuccess = () => resolve(request.result);
+            request.onblocked = (e) => {
+                console.warn("IndexedDB blocked. Please close other tabs.");
+                alert("Database upgrade blocked. Please close other tabs with this site open and reload.");
+            };
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
-                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+                if (db.objectStoreNames.contains(STORE_NAME)) db.deleteObjectStore(STORE_NAME);
+                db.createObjectStore(STORE_NAME);
             };
         });
     }
