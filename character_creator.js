@@ -307,6 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSubclassOptions(c);
             updateUIState();
             renderClassPreview();
+            renderCoreTraits();
             renderClassTable();
             renderClassFeatures();
         };
@@ -604,15 +605,200 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderClassTable() {
-        const container = document.getElementById('creator-class-table');
+    function renderCoreTraits() {
+        let container = document.getElementById('creator-class-table');
+
+        // Fix: Remove wrapping .field container if it exists (removes "Class Table" label)
+        if (container && container.parentElement && container.parentElement.classList.contains('field')) {
+            const parent = container.parentElement;
+            parent.parentNode.insertBefore(container, parent);
+            parent.remove();
+        }
+
+        let isFallback = false;
+        if (!container) {
+            container = document.getElementById('creator-class-preview');
+            isFallback = true;
+        }
         if (!container || !selectedClass) return;
+        if (!isFallback) container.innerHTML = '';
+
+        const clsObj = allClasses.find(c => c.name === selectedClass && c.source === currentClassSource);
+        if (!clsObj) return;
+
+        const makeRow = (label, value) => {
+            if (!value) return "";
+            return `<div style="margin-bottom:4px;"><strong>${label}:</strong> ${value}</div>`;
+        };
         
+        const capitalize = (s) => {
+            if (typeof s !== 'string') return s;
+            return s.charAt(0).toUpperCase() + s.slice(1);
+        };
+
+        let html = `<div style="padding: 10px;">`;
+        html += `<h3 style="margin-top:0; color:var(--red-dark); border-bottom:1px solid var(--gold); padding-bottom:5px; font-family:'Cinzel',serif;">Core Traits</h3>`;
+        html += `<div style="font-size: 0.9rem; line-height: 1.6; color:var(--ink);">`;
+
+        // Primary Ability
+        if (clsObj.primaryAbility) {
+             const map = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
+             const parseAbility = (obj) => {
+                 const opts = [];
+                 Object.keys(obj).forEach(k => { if (map[k]) opts.push(map[k]); });
+                 return opts.join(' or ');
+             };
+             const abilities = [];
+             if (Array.isArray(clsObj.primaryAbility)) {
+                 clsObj.primaryAbility.forEach(entry => abilities.push(parseAbility(entry)));
+             } else if (typeof clsObj.primaryAbility === 'object') {
+                 abilities.push(parseAbility(clsObj.primaryAbility));
+             }
+             if (abilities.length) html += makeRow("Primary Ability", abilities.join('; '));
+        }
+
+        // Hit Points
+        if (clsObj.hd) {
+            const faces = clsObj.hd.faces || clsObj.hd;
+            html += makeRow("Hit Point Die", `D${faces} per ${selectedClass} level`);
+            html += makeRow("Hit Points at Level 1", `${faces} + Con. modifier`);
+            html += makeRow("Hit Points per Level", `D${faces} (or ${Math.floor(faces/2)+1}) + Con. modifier`);
+        }
+
+        // Saves
+        if (clsObj.proficiency) {
+            const saves = clsObj.proficiency.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(', ');
+            html += makeRow("Saving Throws", saves);
+        }
+
+        // Tools
+        if (clsObj.startingProficiencies && clsObj.startingProficiencies.tools) {
+            const tools = clsObj.startingProficiencies.tools.map(t => {
+                const text = typeof t === 'string' ? t : (t.name || "");
+                return capitalize(text.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : ""));
+            }).filter(t => t).join(', ');
+            html += makeRow("Tool Proficiencies", tools);
+        }
+
+        // Skills
+        let skillDropdownIndex = 0;
+        if (clsObj.startingProficiencies && clsObj.startingProficiencies.skills) {
+            const s = clsObj.startingProficiencies.skills;
+            if (Array.isArray(s)) {
+                s.forEach(sk => {
+                    if (sk.choose) {
+                        const count = sk.choose.count || 1;
+                        const options = sk.choose.from.map(o => capitalize(o));
+                        html += makeRow("Skill Proficiencies", `Choose ${count}: ${options.join(', ')}`);
+                        
+                        html += `<div style="margin-bottom:8px; display:flex; gap:8px; flex-wrap:wrap;">`;
+                        for(let i=0; i<count; i++) {
+                            html += `<select class="styled-select skill-select-dropdown" id="core-skill-${skillDropdownIndex++}" style="font-size:0.9rem; padding:2px 4px;">`;
+                            html += `<option value="" disabled selected>Select Skill</option>`;
+                            options.forEach(opt => {
+                                html += `<option value="${opt}">${opt}</option>`;
+                            });
+                            html += `</select>`;
+                        }
+                        html += `</div>`;
+                    }
+                });
+            }
+        }
+
+        // Weapons & Armor
+        if (clsObj.startingProficiencies) {
+            if (clsObj.startingProficiencies.weapons) {
+                const weapons = clsObj.startingProficiencies.weapons.map(w => {
+                    const text = typeof w === 'string' ? w : (w.proficiency || "");
+                    return capitalize(text.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : ""));
+                }).filter(w => w).join(', ');
+                html += makeRow("Weapon Proficiencies", weapons);
+            }
+            if (clsObj.startingProficiencies.armor) {
+                const armor = clsObj.startingProficiencies.armor.map(a => {
+                    const text = typeof a === 'string' ? a : (a.proficiency || "");
+                    return capitalize(text.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : ""));
+                }).filter(a => a).join(', ');
+                html += makeRow("Armor Training", armor);
+            }
+        }
+
+        // Starting Equipment
+        if (clsObj.startingEquipment) {
+             let equipText = "See class description.";
+             if (clsObj.startingEquipment.entries) {
+                 equipText = clsObj.startingEquipment.entries.join(' ');
+             } else if (clsObj.startingEquipment.default) {
+                 equipText = clsObj.startingEquipment.default.join(', ');
+             }
+             // Clean tags
+             equipText = equipText.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+             html += makeRow("Starting Equipment", equipText);
+        }
+
+        // Multiclassing
+        if (clsObj.multiclassing && clsObj.multiclassing.requirements) {
+            const reqs = [];
+            const map = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
+            Object.entries(clsObj.multiclassing.requirements).forEach(([k, v]) => {
+                if (map[k]) reqs.push(`${map[k]} ${v}`);
+            });
+            if (reqs.length) html += makeRow("Multiclassing Requirement", reqs.join(', '));
+        }
+
+        html += `</div></div>`;
+        
+        if (isFallback) {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html;
+            container.appendChild(wrapper);
+        } else {
+            container.innerHTML = html;
+        }
+
+        // Add event listeners to prevent duplicate skill selection
+        const skillSelects = container.querySelectorAll('.skill-select-dropdown');
+        if (skillSelects.length > 0) {
+            const updateSkillOptions = () => {
+                const selectedValues = Array.from(skillSelects).map(s => s.value).filter(v => v);
+                skillSelects.forEach(select => {
+                    const currentVal = select.value;
+                    Array.from(select.options).forEach(opt => {
+                        if (!opt.value) return;
+                        // Disable if selected in another dropdown
+                        if (selectedValues.includes(opt.value) && opt.value !== currentVal) {
+                            opt.disabled = true;
+                        } else {
+                            opt.disabled = false;
+                        }
+                    });
+                });
+            };
+            skillSelects.forEach(s => s.addEventListener('change', updateSkillOptions));
+        }
+    }
+
+    function renderClassTable() {
+        let container = document.getElementById('creator-class-table-dynamic');
+        if (!container) {
+            const step2 = document.getElementById('step-2-section');
+            if (step2 && step2.parentNode) {
+                container = document.createElement('div');
+                container.id = 'creator-class-table-dynamic';
+                container.style.marginTop = "20px";
+                container.style.marginBottom = "20px";
+                step2.parentNode.insertBefore(container, step2);
+            } else {
+                container = document.getElementById('creator-class-preview');
+            }
+        }
+        if (!container || !selectedClass) return;
         container.innerHTML = '';
         
         const clsObj = allClasses.find(c => c.name === selectedClass && c.source === currentClassSource);
         if (!clsObj) {
-            container.innerHTML = '<div style="padding:10px;">Class data not found.</div>';
+            // container.innerHTML = '<div style="padding:10px;">Class data not found.</div>';
             return;
         }
 
@@ -663,8 +849,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (clsObj.classTableGroups) {
                 clsObj.classTableGroups.forEach(group => {
-                    if (group.rows && group.rows[i-1]) {
-                        group.rows[i-1].forEach(cellVal => {
+                    const rows = group.rows || group.rowsSpellProgression;
+                    if (rows && rows[i-1]) {
+                        rows[i-1].forEach(cellVal => {
                             const td = document.createElement('td');
                             let val = cellVal;
                             if (typeof cellVal === 'object' && cellVal !== null) {
@@ -672,8 +859,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 else if (cellVal.value !== undefined) val = cellVal.value;
                             }
                             if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
-                            if (val === null || val === undefined) val = "-";
-                            td.innerHTML = (val === 0 ? "-" : val).toString().replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+                            if (val === null || val === undefined || val === "" || val === 0) val = "-";
+                            td.innerHTML = val.toString().replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
                             tr.appendChild(td);
                         });
                     }
@@ -682,6 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tbody.appendChild(tr);
         }
         table.appendChild(tbody);
+        
         container.appendChild(table);
     }
 
