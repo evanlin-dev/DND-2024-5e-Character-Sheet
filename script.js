@@ -537,7 +537,6 @@
                if (!file.name.toLowerCase().endsWith('.json')) return;
                try { 
                    const json = JSON.parse(file.content);
-                   console.log("Item Data:", json);
                    // Strict filtering: Only look in known item arrays to avoid monsters/spells/adventures
                    const arraysToCheck = [json.item, json.items, json.baseitem, json.baseitems, json.magicvariant, json.magicvariants, json.variant];
                    arraysToCheck.forEach(arr => {

@@ -11,8 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let allClasses = [];
     let allSpells = [];
     let allOptionalFeatures = [];
+    let allFeats = [];
     let selectedOptionalFeatures = new Set();
     let selectedSpells = new Set();
+    let allBackgrounds = [];
+    let selectedBackground = null;
 
     // DB Setup
     const DB_NAME = 'DndDataDB';
@@ -30,6 +33,47 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof e === 'string') return e;
             
             let text = "";
+            
+            // Handle Lists
+            if (e.type === 'list') {
+                if (e.name) text += `<strong>${e.name}</strong>`;
+                if (e.items) {
+                    text += "<ul style='margin-top:4px; padding-left:20px; list-style-type:disc;'>" + e.items.map(item => {
+                        let itemText = "";
+                        if (typeof item === 'object') {
+                            if (item.name) itemText += `<strong>${item.name}</strong> `;
+                            if (item.entry) itemText += (typeof item.entry === 'string' ? item.entry : processEntries([item.entry]));
+                            else if (item.entries) itemText += processEntries(item.entries);
+                        } else {
+                            itemText += item;
+                        }
+                        return `<li>${itemText}</li>`;
+                    }).join("") + "</ul>";
+                }
+                return text;
+            }
+
+            // Handle Tables
+            if (e.type === 'table') {
+                if (e.caption) text += `<strong>${e.caption}</strong>`;
+                text += "<table class='currency-table' style='width:100%; font-size:0.8rem; margin-top:5px;'>";
+                if (e.colLabels) {
+                    text += "<thead><tr>" + e.colLabels.map(l => `<th>${l.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "")}</th>`).join("") + "</tr></thead>";
+                }
+                if (e.rows) {
+                    text += "<tbody>" + e.rows.map(row => "<tr>" + row.map(cell => {
+                        let cellContent = cell;
+                        if (typeof cell === 'object') {
+                            if (cell.roll) cellContent = `${cell.roll.min}-${cell.roll.max}`;
+                            else cellContent = processEntries([cell]);
+                        }
+                        return `<td>${String(cellContent).replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "")}</td>`;
+                    }).join("") + "</tr>").join("") + "</tbody>";
+                }
+                text += "</table>";
+                return text;
+            }
+
             if (e.name && (e.type === 'section' || e.type === 'entries')) text += `<strong>${e.name}.</strong> `;
             
             if (e.entries) text += processEntries(e.entries);
@@ -154,6 +198,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         if (json.optionalfeature && Array.isArray(json.optionalfeature)) {
                             for (const i of json.optionalfeature) allOptionalFeatures.push(i);
+                        }
+                        if (json.feat && Array.isArray(json.feat)) {
+                            for (const i of json.feat) allFeats.push(i);
+                        }
+                        if (json.background && Array.isArray(json.background)) {
+                            for (const b of json.background) allBackgrounds.push(b);
                         }
                         
                         // Robust spell loading with enrichment
@@ -326,13 +376,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Next Step Handler
-    document.getElementById('next-step-btn').addEventListener('click', () => {
+    const nextBtn = document.getElementById('next-step-btn');
+    nextBtn.addEventListener('click', () => {
         if (!selectedClass) {
             alert("Please select a class.");
             return;
         }
 
-        console.log(`Selected: ${selectedClass}, Level: ${selectedLevel}, Subclass: ${selectedSubclass}`);
+        const step3 = document.getElementById('step-3-section');
+        if (step3.style.display === 'none') {
+            step3.style.display = 'block';
+            renderBackgroundOptions();
+            step3.scrollIntoView({ behavior: 'smooth' });
+            // nextBtn.textContent = "Finish"; // Optional: Change button text
+        } else {
+            console.log(`Selected: ${selectedClass}, Level: ${selectedLevel}, Subclass: ${selectedSubclass}, Background: ${selectedBackground}`);
+        }
         // Future steps will go here
     });
 
@@ -418,6 +477,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderOptionalFeatures(div, codes, selectedClass, f.level, selectedSubclass);
             } else if (f.name.includes("Metamagic")) {
                 renderOptionalFeatures(div, ["MM"], selectedClass, f.level, selectedSubclass);
+            }
+
+            // Check for Feats in entries and render them
+            const featsInFeature = new Set();
+            const scanForFeats = (obj) => {
+                if (!obj) return;
+                if (typeof obj === 'string') {
+                    const matches = obj.matchAll(/{@feat ([^}|]+)/g);
+                    for (const m of matches) featsInFeature.add(m[1].toLowerCase().trim());
+                } else if (Array.isArray(obj)) {
+                    obj.forEach(scanForFeats);
+                } else if (typeof obj === 'object') {
+                    Object.values(obj).forEach(scanForFeats);
+                }
+            };
+            scanForFeats(f.entries);
+
+            if (featsInFeature.size > 0) {
+                featsInFeature.forEach(featName => {
+                    const candidates = allFeats.filter(ft => ft.name.toLowerCase() === featName);
+                    let feat = candidates.find(ft => ft.source === 'XPHB');
+                    if (!feat) feat = candidates.find(ft => ft.source === 'PHB');
+                    if (!feat) feat = candidates[0];
+
+                    if (feat) {
+                        const featDiv = document.createElement('div');
+                        featDiv.style.marginTop = "10px";
+                        featDiv.style.padding = "10px";
+                        featDiv.style.backgroundColor = "rgba(255, 255, 255, 0.7)";
+                        featDiv.style.border = "1px solid var(--gold)";
+                        featDiv.style.borderRadius = "4px";
+                        
+                        let featDesc = processEntries(feat.entries);
+                        featDesc = featDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+
+                        featDiv.innerHTML = `
+                            <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">Feat: ${feat.name}</div>
+                            <div style="font-size:0.85rem; color:var(--ink); line-height:1.4;">${featDesc}</div>
+                        `;
+                        div.appendChild(featDiv);
+                    }
+                });
             }
 
             container.appendChild(div);
@@ -1098,5 +1199,308 @@ document.addEventListener('DOMContentLoaded', () => {
             div.style.fontWeight = "bold";
             container.appendChild(div);
         });
+    }
+
+    // Background Logic
+    const backgroundSelect = document.getElementById('creator-background');
+    backgroundSelect.addEventListener('change', () => {
+        selectedBackground = backgroundSelect.value;
+        renderBackgroundInfo();
+    });
+
+    function renderBackgroundOptions() {
+        backgroundSelect.innerHTML = '<option value="" disabled selected>Select Background</option>';
+        
+        // Deduplicate preferring XPHB
+        const uniqueMap = new Map();
+        allBackgrounds.forEach(b => {
+            if (!uniqueMap.has(b.name)) {
+                uniqueMap.set(b.name, b);
+            } else {
+                const existing = uniqueMap.get(b.name);
+                if (b.source === 'XPHB') {
+                    uniqueMap.set(b.name, b);
+                } else if (b.source === 'PHB' && existing.source !== 'XPHB') {
+                    uniqueMap.set(b.name, b);
+                }
+            }
+        });
+        
+        const sortedBackgrounds = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+        sortedBackgrounds.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b.name;
+            opt.textContent = b.name;
+            backgroundSelect.appendChild(opt);
+        });
+    }
+
+    function renderBackgroundInfo() {
+        const container = document.getElementById('creator-background-info');
+        container.innerHTML = '';
+        
+        if (!selectedBackground) return;
+
+        // Find the background object (using the same logic as options to ensure match)
+        // Since we populated options from uniqueMap, we can just find by name in allBackgrounds 
+        // but we should respect the source priority again or just store the object. 
+        // For simplicity, we'll find the best match again.
+        const candidates = allBackgrounds.filter(b => b.name === selectedBackground);
+        let bg = candidates.find(b => b.source === 'XPHB') || candidates.find(b => b.source === 'PHB') || candidates[0];
+
+        if (bg) {
+            // Handle _copy if entries are missing (e.g. "Augen Trust (Spy)" copies "Criminal")
+            if (!bg.entries && bg._copy) {
+                const original = allBackgrounds.find(b => b.name === bg._copy.name && b.source === bg._copy.source);
+                if (original && original.entries) bg = { ...original, ...bg, entries: original.entries };
+            }
+
+            if (bg.entries) {
+                let desc = processEntries(bg.entries);
+                desc = desc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+                container.innerHTML = desc;
+
+                // Ability Score Adjustment Logic
+                const allAbilities = ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma'];
+                let foundAbilities = [];
+
+                // 1. Try to parse structured 'ability' data (2024 standard)
+                if (bg.ability) {
+                    const codes = new Set();
+                    bg.ability.forEach(a => {
+                        // Handle weighted choose
+                        if (a.choose && a.choose.weighted && a.choose.weighted.from) {
+                            a.choose.weighted.from.forEach(c => codes.add(c));
+                        }
+                        // Handle simple choose
+                        else if (a.choose && a.choose.from) {
+                             a.choose.from.forEach(c => codes.add(c));
+                        }
+                        // Handle static boosts or simple keys
+                        Object.keys(a).forEach(key => {
+                            if (['str','dex','con','int','wis','cha'].includes(key)) codes.add(key);
+                        });
+                    });
+                    
+                    const map = {
+                        'str': 'Strength', 'dex': 'Dexterity', 'con': 'Constitution',
+                        'int': 'Intelligence', 'wis': 'Wisdom', 'cha': 'Charisma'
+                    };
+                    
+                    codes.forEach(c => {
+                        if (map[c]) foundAbilities.push(map[c]);
+                    });
+                }
+
+                // 2. Fallback to text parsing if no structured data found
+                if (foundAbilities.length === 0) {
+                    let asiEntry = null;
+                    const findASI = (obj) => {
+                        if (asiEntry) return;
+                        if (typeof obj === 'string') {
+                            if (obj.includes('Ability Scores:')) {
+                                asiEntry = obj;
+                            }
+                            return;
+                        }
+                        if (Array.isArray(obj)) {
+                            obj.forEach(findASI);
+                            return;
+                        }
+                        if (typeof obj === 'object' && obj !== null) {
+                            // Handle object with name "Ability Scores" or "Ability Scores:"
+                            if ((obj.name === 'Ability Scores' || obj.name === 'Ability Scores:') && (obj.entries || obj.entry)) {
+                                const content = obj.entries ? (Array.isArray(obj.entries) ? obj.entries.join(' ') : obj.entries) : obj.entry;
+                                asiEntry = "Ability Scores: " + content;
+                                return;
+                            }
+                            if (obj.items) findASI(obj.items);
+                            if (obj.entries) findASI(obj.entries);
+                        }
+                    };
+                    findASI(bg.entries);
+
+                    if (asiEntry) {
+                        let text = asiEntry;
+                        // Handle 5e-tools style tags {@ability str}
+                        text = text.replace(/{@ability\s+([^}]+)}/gi, (match, content) => {
+                            const code = content.split('|')[0].trim().toLowerCase();
+                            const map = {
+                                'str': 'Strength', 'dex': 'Dexterity', 'con': 'Constitution',
+                                'int': 'Intelligence', 'wis': 'Wisdom', 'cha': 'Charisma'
+                            };
+                            return map[code] || content;
+                        });
+
+                        foundAbilities = allAbilities.filter(ability => {
+                            const regex = new RegExp(`\\b${ability}\\b`, 'i');
+                            return regex.test(text);
+                        });
+                    }
+                }
+
+                const hasSuggestions = foundAbilities.length > 0;
+                
+                const asiDiv = document.createElement('div');
+                asiDiv.className = 'feature-box';
+                asiDiv.style.marginTop = '15px';
+                asiDiv.style.border = '2px solid var(--gold)';
+                
+                asiDiv.innerHTML = `
+                    <div class="feature-header" style="border-bottom: 1px solid var(--gold); margin-bottom: 10px;">
+                        <strong>Background Ability Score Adjustment</strong>
+                    </div>
+                    <div style="margin-bottom: 10px; font-size: 0.9rem;">
+                        ${hasSuggestions ? `Background options: <strong>${foundAbilities.join(', ')}</strong>` : "Choose your ability score increases."}
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display:block; font-weight:bold; margin-bottom:4px;">Adjustment Method:</label>
+                        <select id="bg_asi_method" class="styled-select" style="width: 100%;">
+                            <option value="flat">+1 to Three Scores</option>
+                            <option value="split">+2 to One, +1 to Another</option>
+                        </select>
+                    </div>
+                    
+                    <div id="bg_asi_inputs"></div>
+
+                    <button id="apply_bg_asi_btn" class="btn" style="margin-top: 15px; width: 100%; font-size: 0.9rem;">Apply Bonuses</button>
+                `;
+                container.appendChild(asiDiv);
+
+                const methodSelect = asiDiv.querySelector('#bg_asi_method');
+                const inputsContainer = asiDiv.querySelector('#bg_asi_inputs');
+
+                const renderInputs = () => {
+                    const method = methodSelect.value;
+                    inputsContainer.innerHTML = '';
+                    
+                    const selects = [];
+
+                    const createSelect = (label, id) => {
+                        const wrapper = document.createElement('div');
+                        wrapper.style.marginBottom = '8px';
+                        wrapper.innerHTML = `<label style="font-size:0.9rem;">${label}</label>`;
+                        const sel = document.createElement('select');
+                        sel.id = id;
+                        sel.className = 'styled-select';
+                        sel.style.width = '100%';
+                        
+                        const optionsList = hasSuggestions ? foundAbilities : allAbilities;
+                        sel.innerHTML = `<option value="" disabled selected>--</option>` + optionsList.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                        wrapper.appendChild(sel);
+                        selects.push(sel);
+                        return wrapper;
+                    };
+
+                    if (method === 'flat') {
+                        inputsContainer.appendChild(createSelect('Score 1 (+1)', 'bg_asi_s1'));
+                        inputsContainer.appendChild(createSelect('Score 2 (+1)', 'bg_asi_s2'));
+                        inputsContainer.appendChild(createSelect('Score 3 (+1)', 'bg_asi_s3'));
+                    } else {
+                        inputsContainer.appendChild(createSelect('Score (+2)', 'bg_asi_p2'));
+                        inputsContainer.appendChild(createSelect('Score (+1)', 'bg_asi_p1'));
+                    }
+
+                    // Logic to disable selected options
+                    const updateOptions = () => {
+                        const selectedValues = selects.map(s => s.value).filter(v => v !== "");
+                        selects.forEach(sel => {
+                            const currentVal = sel.value;
+                            Array.from(sel.options).forEach(opt => {
+                                if (opt.value === "") return;
+
+                                if (opt.value === currentVal) {
+                                    opt.disabled = false;
+                                    opt.hidden = false;
+                                } else {
+                                    const isSelected = selectedValues.includes(opt.value);
+                                    opt.disabled = isSelected;
+                                    opt.hidden = isSelected;
+                                }
+                            });
+                        });
+                    };
+
+                    selects.forEach(s => s.addEventListener('change', updateOptions));
+                    updateOptions();
+                };
+
+                methodSelect.addEventListener('change', renderInputs);
+                renderInputs();
+
+                asiDiv.querySelector('#apply_bg_asi_btn').addEventListener('click', () => {
+                    const method = methodSelect.value;
+                    const map = { 'Strength': 'str', 'Dexterity': 'dex', 'Constitution': 'con', 'Intelligence': 'int', 'Wisdom': 'wis', 'Charisma': 'cha' };
+                    const add = (n, v) => { const el = document.getElementById(map[n]); if(el) el.value = (parseInt(el.value)||10) + v; };
+                    
+                    if (method === 'flat') {
+                        const s1 = document.getElementById('bg_asi_s1').value;
+                        const s2 = document.getElementById('bg_asi_s2').value;
+                        const s3 = document.getElementById('bg_asi_s3').value;
+                        if (!s1 || !s2 || !s3) return alert("Please select all ability scores.");
+                        if (s1 === s2 || s1 === s3 || s2 === s3) return alert("Please select three different scores.");
+                        add(s1, 1); add(s2, 1); add(s3, 1);
+                    } else {
+                        const p2 = document.getElementById('bg_asi_p2').value;
+                        const p1 = document.getElementById('bg_asi_p1').value;
+                        if (!p2 || !p1) return alert("Please select all ability scores.");
+                        if (p2 === p1) return alert("Scores must be different.");
+                        add(p2, 2); add(p1, 1);
+                    }
+                    if(window.updateModifiers) window.updateModifiers();
+                    if(window.saveCharacter) window.saveCharacter();
+                    alert("Ability scores updated!");
+                });
+
+                // Check for Feats in entries and render them
+                const featsInFeature = new Set();
+                const scanForFeats = (obj) => {
+                    if (!obj) return;
+                    if (typeof obj === 'string') {
+                        const matches = obj.matchAll(/{@feat ([^}|]+)/g);
+                        for (const m of matches) featsInFeature.add(m[1].toLowerCase().trim());
+                    } else if (Array.isArray(obj)) {
+                        obj.forEach(scanForFeats);
+                    } else if (typeof obj === 'object') {
+                        Object.values(obj).forEach(scanForFeats);
+                    }
+                };
+                scanForFeats(bg.entries);
+
+                if (featsInFeature.size > 0) {
+                    featsInFeature.forEach(featName => {
+                        let candidates = allFeats.filter(ft => ft.name.toLowerCase() === featName);
+                        if (candidates.length === 0 && featName.includes('(')) {
+                            const baseName = featName.replace(/\s*\(.*?\)/, '').trim();
+                            candidates = allFeats.filter(ft => ft.name.toLowerCase() === baseName);
+                        }
+                        let feat = candidates.find(ft => ft.source === 'XPHB');
+                        if (!feat) feat = candidates.find(ft => ft.source === 'PHB');
+                        if (!feat) feat = candidates[0];
+
+                        if (feat) {
+                            const featDiv = document.createElement('div');
+                            featDiv.style.marginTop = "10px";
+                            featDiv.style.padding = "10px";
+                            featDiv.style.backgroundColor = "rgba(255, 255, 255, 0.7)";
+                            featDiv.style.border = "1px solid var(--gold)";
+                            featDiv.style.borderRadius = "4px";
+                            
+                            let featDesc = processEntries(feat.entries);
+                            featDesc = featDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+
+                            featDiv.innerHTML = `
+                                <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">Feat: ${feat.name}</div>
+                                <div style="font-size:0.85rem; color:var(--ink); line-height:1.4;">${featDesc}</div>
+                            `;
+                            container.appendChild(featDiv);
+                        }
+                    });
+                }
+            } else {
+                container.innerHTML = "No description available.";
+            }
+        }
     }
 });
