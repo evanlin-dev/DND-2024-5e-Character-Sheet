@@ -870,7 +870,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const DB_NAME = 'DndDataDB';
     const STORE_NAME = 'files';
-    const DB_VERSION = 
+    const DB_VERSION = 3;
+
     function openDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
