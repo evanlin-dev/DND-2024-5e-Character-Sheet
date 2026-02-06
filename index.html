@@ -439,10 +439,13 @@
         </div>
         <div class="field">
           <label class="field-label">Weapon Proficiency</label>
-          <input type="hidden" id="weaponProfs" onchange="renderWeaponTags()" />
-          <div class="tag-display" id="weaponProfsDisplay" onclick="openWeaponProfModal()">
-            <span style="color: var(--ink-light); font-style: italic; font-size: 0.9rem;">Click to select...</span>
+          <div id="weaponProfsSelector">
+            <input type="hidden" id="weaponProfs" onchange="renderWeaponTags()" />
+            <div class="tag-display" id="weaponProfsDisplay" onclick="openWeaponProfModal()">
+              <span style="color: var(--ink-light); font-style: italic; font-size: 0.9rem;">Click to select...</span>
+            </div>
           </div>
+          <textarea id="weaponProfsText" class="weapon-profs-text" style="display:none;" placeholder="e.g. Simple Weapons, Longswords..."></textarea>
         </div>
         <div class="field">
           <label class="field-label">Tool Proficiency</label>

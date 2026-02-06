@@ -2715,7 +2715,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const scores = getFinalAbilityScores();
         
         // Calculate HP
-        const clsObj = allClasses.find(c => c.name === selectedClass);
+        const clsObj = allClasses.find(c => c.name === selectedClass && c.source === currentClassSource) || allClasses.find(c => c.name === selectedClass);
         const hitDie = clsObj && clsObj.hd ? clsObj.hd.faces : 8;
         const conMod = Math.floor((scores.Constitution - 10) / 2);
         let hp = hitDie + conMod; // Level 1
@@ -2876,24 +2876,30 @@ document.addEventListener('DOMContentLoaded', () => {
             if (clsObj.startingProficiencies) {
                 if (clsObj.startingProficiencies.armor) {
                     clsObj.startingProficiencies.armor.forEach(a => {
-                        const aName = (typeof a === 'string' ? a : a.proficiency).toLowerCase();
-                        if (aName === 'light') armorLight = true;
-                        if (aName === 'medium') armorMedium = true;
-                        if (aName === 'heavy') armorHeavy = true;
-                        if (aName === 'shields') armorShield = true;
+                        let aName = (typeof a === 'string' ? a : a.proficiency);
+                        aName = cleanText(aName).toLowerCase();
+                        if (aName === 'light' || aName === 'light armor') armorLight = true;
+                        if (aName === 'medium' || aName === 'medium armor') armorMedium = true;
+                        if (aName === 'heavy' || aName === 'heavy armor') armorHeavy = true;
+                        if (aName === 'shields' || aName === 'shield') armorShield = true;
                     });
                 }
                 if (clsObj.startingProficiencies.weapons) {
                     clsObj.startingProficiencies.weapons.forEach(w => {
-                        const wName = (typeof w === 'string' ? w : w.proficiency);
+                        let wName = (typeof w === 'string' ? w : w.proficiency);
+                        wName = cleanText(wName);
+                        if (!wName) return;
+
                         if (wName.toLowerCase() === 'simple') weaponProfs.push("Simple Weapons");
                         else if (wName.toLowerCase() === 'martial') weaponProfs.push("Martial Weapons");
-                        else weaponProfs.push(wName);
+                        else weaponProfs.push(wName.charAt(0).toUpperCase() + wName.slice(1));
                     });
                 }
                 if (clsObj.startingProficiencies.tools) {
                     clsObj.startingProficiencies.tools.forEach(t => {
-                        toolProfs.push(typeof t === 'string' ? t : t.name || t.proficiency);
+                        let tName = typeof t === 'string' ? t : t.name || t.proficiency;
+                        tName = cleanText(tName);
+                        if (tName) toolProfs.push(tName.charAt(0).toUpperCase() + tName.slice(1));
                     });
                 }
             }
@@ -2905,36 +2911,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Spell Slots
             if (clsObj.classTableGroups) {
-                const slotGroup = clsObj.classTableGroups.find(g => g.title === "Spell Slots per Spell Level");
-                if (slotGroup && slotGroup.rows && slotGroup.rows[selectedLevel - 1]) {
-                    const row = slotGroup.rows[selectedLevel - 1];
-                    slotGroup.colLabels.forEach((label, idx) => {
-                        const lvlMatch = label.match(/(\d+)/);
-                        if (lvlMatch) {
-                            const lvl = parseInt(lvlMatch[1]);
-                            const val = row[idx];
-                            const total = parseInt(val);
-                            if (!isNaN(total) && total > 0) {
-                                spellSlotsData.push({ level: lvl, total: total, used: 0 });
+                // Iterate all groups to find spell slots (standard casting)
+                clsObj.classTableGroups.forEach(group => {
+                    if (!group.colLabels || !group.rows || !group.rows[selectedLevel - 1]) return;
+                    
+                    const row = group.rows[selectedLevel - 1];
+                    group.colLabels.forEach((label, idx) => {
+                        // Clean label (remove tags)
+                        const cleanLabel = label.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+                        
+                        // Match "1st", "2nd", "3rd", etc.
+                        const slotMatch = cleanLabel.match(/^(\d+)(?:st|nd|rd|th)$/i);
+                        
+                        if (slotMatch) {
+                            const lvl = parseInt(slotMatch[1]);
+                            // Sanity check: Spell levels are 1-9
+                            if (lvl >= 1 && lvl <= 9) {
+                                let val = row[idx];
+                                if (typeof val === 'object' && val !== null && val.value !== undefined) val = val.value;
+                                const total = parseInt(val);
+                                if (!isNaN(total) && total > 0) {
+                                    if (!spellSlotsData.some(s => s.level === lvl)) {
+                                        spellSlotsData.push({ level: lvl, total: total, used: 0 });
+                                    }
+                                }
                             }
                         }
                     });
-                }
-                // Warlock / Pact Magic
+                });
+
+                // Warlock / Pact Magic (if no standard slots found)
                 if (spellSlotsData.length === 0) {
                      let slotsCount = 0;
                      let slotLevel = 0;
                      clsObj.classTableGroups.forEach(g => {
-                         if (!g.colLabels) return;
-                         const slotsIdx = g.colLabels.findIndex(l => l.includes("Spell Slots"));
-                         const levelIdx = g.colLabels.findIndex(l => l.includes("Slot Level"));
-                         if (slotsIdx !== -1 && g.rows[selectedLevel - 1]) {
-                             slotsCount = parseInt(g.rows[selectedLevel - 1][slotsIdx]) || 0;
-                         }
-                         if (levelIdx !== -1 && g.rows[selectedLevel - 1]) {
-                             const lvlStr = g.rows[selectedLevel - 1][levelIdx];
-                             slotLevel = parseInt(lvlStr) || 0;
-                         }
+                         if (!g.colLabels || !g.rows || !g.rows[selectedLevel - 1]) return;
+                         
+                         const row = g.rows[selectedLevel - 1];
+                         g.colLabels.forEach((label, idx) => {
+                             const cleanLabel = label.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+                             
+                             if (cleanLabel.match(/Spell Slots/i)) {
+                                 let val = row[idx];
+                                 if (typeof val === 'object' && val !== null && val.value !== undefined) val = val.value;
+                                 slotsCount = parseInt(val) || 0;
+                             }
+                             if (cleanLabel.match(/Slot Level/i)) {
+                                 let val = row[idx];
+                                 if (typeof val === 'object' && val !== null && val.value !== undefined) val = val.value;
+                                 const lvlMatch = String(val).match(/(\d+)/);
+                                 if (lvlMatch) slotLevel = parseInt(lvlMatch[1]);
+                             }
+                         });
                      });
                      if (slotsCount > 0 && slotLevel > 0) {
                          spellSlotsData.push({ level: slotLevel, total: slotsCount, used: 0 });
@@ -2948,26 +2976,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const spellsList = [];
 
         selectedSpells.forEach(sName => {
-            const candidates = allSpells.filter(s => s.name === sName);
+            const cleanName = sName.trim();
+            let candidates = allSpells.filter(s => s.name === cleanName);
+            if (candidates.length === 0) {
+                candidates = allSpells.filter(s => s.name.toLowerCase() === cleanName.toLowerCase());
+            }
+
             let spell = candidates.find(s => s.source === 'XPHB') || candidates.find(s => s.source === 'PHB') || candidates[0];
             
             if (spell) {
                 let time = "";
                 if (spell.time && spell.time[0]) {
-                    time = `${spell.time[0].number} ${spell.time[0].unit}`;
+                    const t = spell.time[0];
+                    time = `${t.number || ""} ${t.unit || ""}`.trim();
                 }
                 
                 let range = "";
                 if (spell.range) {
                     if (spell.range.distance) {
-                         range = `${spell.range.distance.amount ? spell.range.distance.amount + ' ' : ''}${spell.range.distance.type}`;
+                         const dist = spell.range.distance;
+                         range = `${dist.amount ? dist.amount + ' ' : ''}${dist.type}`;
                     } else {
-                        range = spell.range.type;
+                        range = spell.range.type || "";
                     }
+                }
+
+                let duration = "";
+                if (spell.duration) {
+                    duration = spell.duration.map(d => {
+                        if (d.type === "instant") return "Instantaneous";
+                        if (d.type === "timed" && d.duration) return `${d.concentration ? "Concentration, " : ""}${d.duration.amount} ${d.duration.type}${d.duration.amount > 1 ? "s" : ""}`;
+                        if (d.type === "permanent") return "Permanent";
+                        return "Special";
+                    }).join(" or ");
                 }
 
                 let desc = processEntries(spell.entries);
                 desc = cleanText(desc);
+                if (duration) desc = `**Duration:** ${duration}\n\n${desc}`;
 
                 const spellData = {
                     name: spell.name,
@@ -2987,7 +3033,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     spellsList.push(spellData);
                 }
             } else {
-                spellsList.push({ name: sName, level: 1, prepared: false });
+                console.warn(`Spell not found: ${sName}`);
+                spellsList.push({ name: sName, level: 1, prepared: false, description: "Details not found." });
             }
         });
 

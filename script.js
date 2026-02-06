@@ -487,9 +487,12 @@
                const btnItems = document.getElementById('btn-search-items-zip');
                const btnCantrips = document.getElementById('btn-search-cantrips-zip');
                const btnSpells = document.getElementById('btn-search-spells-zip');
+               const hasData = !!req.result;
 
-               console.log("DB Query Result:", req.result ? "Data Found" : "Empty");
-               if (req.result) {
+               console.log("DB Query Result:", hasData ? "Data Found" : "Empty");
+               
+               // Toggle Buttons
+               if (hasData) {
                    if (btnItems) btnItems.style.display = 'inline-block';
                    if (btnCantrips) btnCantrips.style.display = 'inline-block';
                    if (btnSpells) btnSpells.style.display = 'inline-block';
@@ -498,6 +501,56 @@
                    if (btnCantrips) btnCantrips.style.display = 'none';
                    if (btnSpells) btnSpells.style.display = 'none';
                }
+
+               // Toggle Weapon Proficiency Input Mode
+               const selectorDiv = document.getElementById('weaponProfsSelector');
+               const textInput = document.querySelector('.weapon-profs-text');
+               
+               if (selectorDiv && textInput) {
+                   const hiddenInput = selectorDiv.querySelector('input[type="hidden"]');
+                   if (hasData) {
+                       // Show Selector, Hide Text
+                       selectorDiv.style.display = 'block';
+                       textInput.style.display = 'none';
+                       // Ensure ID 'weaponProfs' is on the hidden input for save/load compatibility
+                       if (textInput.id === 'weaponProfs') {
+                           textInput.id = 'weaponProfsText';
+                           hiddenInput.id = 'weaponProfs';
+                           hiddenInput.value = textInput.value; // Sync value
+                           if (window.renderWeaponTags) window.renderWeaponTags();
+                       }
+                   } else {
+                       // Show Text, Hide Selector
+                       selectorDiv.style.display = 'none';
+                       textInput.style.display = 'block';
+                       // Ensure ID 'weaponProfs' is on the text input
+                       if (hiddenInput.id === 'weaponProfs') {
+                           hiddenInput.id = 'weaponProfsHidden';
+                           textInput.id = 'weaponProfs';
+                           textInput.value = hiddenInput.value; // Sync value
+                       }
+                   }
+               }
+
+               // Toggle Weapon Attack Inputs
+               window.isDataAvailable = hasData;
+               document.querySelectorAll('.weapon-name').forEach(input => {
+                   if (hasData) {
+                       input.setAttribute('readonly', 'true');
+                       input.setAttribute('onclick', 'openWeaponPicker(this)');
+                       input.onclick = function() { openWeaponPicker(this); };
+                       input.style.cursor = 'pointer';
+                       input.style.color = 'var(--red-dark)';
+                       input.placeholder = "Click to select...";
+                   } else {
+                       input.removeAttribute('readonly');
+                       input.removeAttribute('onclick');
+                       input.onclick = null;
+                       input.style.cursor = 'text';
+                       input.style.color = 'var(--ink)';
+                       input.placeholder = "Enter weapon name";
+                   }
+               });
            };
            req.onerror = (e) => {
                console.error("Error reading from object store:", e);
@@ -1191,7 +1244,13 @@
    window.addWeapon = function (data = null) {
      const weaponList = document.getElementById("weapon-list");
      const newWeapon = document.createElement("div"); newWeapon.className = "feature-box weapon-item"; newWeapon.style.paddingRight = "40px"; newWeapon.style.position = "relative";
-     newWeapon.innerHTML = `<button class="delete-feature-btn" style="position: absolute; top: 5px; right: 5px; z-index:10; width: 24px; height: 24px;" onclick="this.closest('.weapon-item').remove(); saveCharacter();">&times;</button><div style="display: flex; flex-direction: column; gap: 10px;"><div class="grid grid-3" style="margin-bottom: 0; gap: 10px;"><div class="field"><span class="field-label">Weapon Name</span><input type="text" class="weapon-name" placeholder="Click to select..." onclick="openWeaponPicker(this)" readonly value="${data ? data.name : ""}" style="cursor: pointer; color: var(--red-dark); font-weight: bold;" /></div><div class="field"><span class="field-label">Atk Bonus</span><input type="text" class="weapon-atk" placeholder="+0" value="${data ? data.atk : ""}" /></div><div class="field"><span class="field-label">Damage</span><input type="text" class="weapon-damage" placeholder="1d6+0" value="${data ? data.damage : ""}" /></div></div><div class="field"><span class="field-label">Notes</span><input type="text" class="weapon-notes" placeholder="Properties..." value="${data ? data.notes : ""}" /></div></div>`;
+     
+     const isLocked = window.isDataAvailable;
+     const nameField = isLocked 
+        ? `<input type="text" class="weapon-name" placeholder="Click to select..." onclick="openWeaponPicker(this)" readonly value="${data ? data.name : ""}" style="cursor: pointer; color: var(--red-dark); font-weight: bold;" />`
+        : `<input type="text" class="weapon-name" placeholder="Enter weapon name" value="${data ? data.name : ""}" style="cursor: text; color: var(--ink); font-weight: bold;" />`;
+
+     newWeapon.innerHTML = `<button class="delete-feature-btn" style="position: absolute; top: 5px; right: 5px; z-index:10; width: 24px; height: 24px;" onclick="this.closest('.weapon-item').remove(); saveCharacter();">&times;</button><div style="display: flex; flex-direction: column; gap: 10px;"><div class="grid grid-3" style="margin-bottom: 0; gap: 10px;"><div class="field"><span class="field-label">Weapon Name</span>${nameField}</div><div class="field"><span class="field-label">Atk Bonus</span><input type="text" class="weapon-atk" placeholder="+0" value="${data ? data.atk : ""}" /></div><div class="field"><span class="field-label">Damage</span><input type="text" class="weapon-damage" placeholder="1d6+0" value="${data ? data.damage : ""}" /></div></div><div class="field"><span class="field-label">Notes</span><input type="text" class="weapon-notes" placeholder="Properties..." value="${data ? data.notes : ""}" /></div></div>`;
      weaponList.appendChild(newWeapon);
      newWeapon.querySelectorAll("input").forEach(input => input.addEventListener("input", saveCharacter));
      if (!window.isInitializing) saveCharacter();
