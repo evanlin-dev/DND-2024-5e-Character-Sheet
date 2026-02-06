@@ -18,6 +18,50 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedBackground = null;
     let allSpecies = [];
     let selectedSpecies = null;
+    let allMasteryProperties = {};
+
+    // Weapon DB (Copied for Character Creator)
+    const dndWeaponsDB = {
+        "Club": { type: "Simple", cat: "Melee", dmg: "1d4", dtype: "bludgeoning", props: ["Light"], mastery: "Slow" },
+        "Dagger": { type: "Simple", cat: "Melee", dmg: "1d4", dtype: "piercing", props: ["Finesse", "Light", "Thrown (20/60)"], mastery: "Nick" },
+        "Greatclub": { type: "Simple", cat: "Melee", dmg: "1d8", dtype: "bludgeoning", props: ["Two-Handed"], mastery: "Push" },
+        "Handaxe": { type: "Simple", cat: "Melee", dmg: "1d6", dtype: "slashing", props: ["Light", "Thrown (20/60)"], mastery: "Vex" },
+        "Javelin": { type: "Simple", cat: "Melee", dmg: "1d6", dtype: "piercing", props: ["Thrown (30/120)"], mastery: "Slow" },
+        "Light Hammer": { type: "Simple", cat: "Melee", dmg: "1d4", dtype: "bludgeoning", props: ["Light", "Thrown (20/60)"], mastery: "Nick" },
+        "Mace": { type: "Simple", cat: "Melee", dmg: "1d6", dtype: "bludgeoning", props: [], mastery: "Sap" },
+        "Quarterstaff": { type: "Simple", cat: "Melee", dmg: "1d6", dtype: "bludgeoning", props: ["Versatile (1d8)"], mastery: "Topple" },
+        "Sickle": { type: "Simple", cat: "Melee", dmg: "1d4", dtype: "slashing", props: ["Light"], mastery: "Nick" },
+        "Spear": { type: "Simple", cat: "Melee", dmg: "1d6", dtype: "piercing", props: ["Thrown (20/60)", "Versatile (1d8)"], mastery: "Sap" },
+        "Light Crossbow": { type: "Simple", cat: "Ranged", dmg: "1d8", dtype: "piercing", props: ["Ammunition (80/320)", "Loading", "Two-Handed"], mastery: "Slow" },
+        "Dart": { type: "Simple", cat: "Ranged", dmg: "1d4", dtype: "piercing", props: ["Finesse", "Thrown (20/60)"], mastery: "Vex" },
+        "Shortbow": { type: "Simple", cat: "Ranged", dmg: "1d6", dtype: "piercing", props: ["Ammunition (80/320)", "Two-Handed"], mastery: "Vex" },
+        "Sling": { type: "Simple", cat: "Ranged", dmg: "1d4", dtype: "bludgeoning", props: ["Ammunition (30/120)"], mastery: "Slow" },
+        "Battleaxe": { type: "Martial", cat: "Melee", dmg: "1d8", dtype: "slashing", props: ["Versatile (1d10)"], mastery: "Topple" },
+        "Flail": { type: "Martial", cat: "Melee", dmg: "1d8", dtype: "bludgeoning", props: [], mastery: "Sap" },
+        "Glaive": { type: "Martial", cat: "Melee", dmg: "1d10", dtype: "slashing", props: ["Heavy", "Reach", "Two-Handed"], mastery: "Graze" },
+        "Greataxe": { type: "Martial", cat: "Melee", dmg: "1d12", dtype: "slashing", props: ["Heavy", "Two-Handed"], mastery: "Cleave" },
+        "Greatsword": { type: "Martial", cat: "Melee", dmg: "2d6", dtype: "slashing", props: ["Heavy", "Two-Handed"], mastery: "Graze" },
+        "Halberd": { type: "Martial", cat: "Melee", dmg: "1d10", dtype: "slashing", props: ["Heavy", "Reach", "Two-Handed"], mastery: "Cleave" },
+        "Lance": { type: "Martial", cat: "Melee", dmg: "1d12", dtype: "piercing", props: ["Reach", "Special"], mastery: "Topple" },
+        "Longsword": { type: "Martial", cat: "Melee", dmg: "1d8", dtype: "slashing", props: ["Versatile (1d10)"], mastery: "Sap" },
+        "Maul": { type: "Martial", cat: "Melee", dmg: "2d6", dtype: "bludgeoning", props: ["Heavy", "Two-Handed"], mastery: "Topple" },
+        "Morningstar": { type: "Martial", cat: "Melee", dmg: "1d8", dtype: "piercing", props: [], mastery: "Sap" },
+        "Pike": { type: "Martial", cat: "Melee", dmg: "1d10", dtype: "piercing", props: ["Heavy", "Reach", "Two-Handed"], mastery: "Push" },
+        "Rapier": { type: "Martial", cat: "Melee", dmg: "1d8", dtype: "piercing", props: ["Finesse"], mastery: "Vex" },
+        "Scimitar": { type: "Martial", cat: "Melee", dmg: "1d6", dtype: "slashing", props: ["Finesse", "Light"], mastery: "Nick" },
+        "Shortsword": { type: "Martial", cat: "Melee", dmg: "1d6", dtype: "piercing", props: ["Finesse", "Light"], mastery: "Vex" },
+        "Trident": { type: "Martial", cat: "Melee", dmg: "1d6", dtype: "piercing", props: ["Thrown (20/60)", "Versatile (1d8)"], mastery: "Topple" },
+        "War Pick": { type: "Martial", cat: "Melee", dmg: "1d8", dtype: "piercing", props: [], mastery: "Sap" },
+        "Warhammer": { type: "Martial", cat: "Melee", dmg: "1d8", dtype: "bludgeoning", props: ["Versatile (1d10)"], mastery: "Push" },
+        "Whip": { type: "Martial", cat: "Melee", dmg: "1d4", dtype: "slashing", props: ["Finesse", "Reach"], mastery: "Slow" },
+        "Blowgun": { type: "Martial", cat: "Ranged", dmg: "1", dtype: "piercing", props: ["Ammunition (25/100)", "Loading"], mastery: "Vex" },
+        "Hand Crossbow": { type: "Martial", cat: "Ranged", dmg: "1d6", dtype: "piercing", props: ["Ammunition (30/120)", "Light", "Loading"], mastery: "Vex" },
+        "Heavy Crossbow": { type: "Martial", cat: "Ranged", dmg: "1d10", dtype: "piercing", props: ["Ammunition (100/400)", "Heavy", "Loading", "Two-Handed"], mastery: "Push" },
+        "Longbow": { type: "Martial", cat: "Ranged", dmg: "1d8", dtype: "piercing", props: ["Ammunition (150/600)", "Heavy", "Two-Handed"], mastery: "Slow" },
+        "Net": { type: "Martial", cat: "Ranged", dmg: "0", dtype: "-", props: ["Special", "Thrown (5/15)"], mastery: null },
+        "Musket": { type: "Martial", cat: "Ranged", dmg: "1d12", dtype: "piercing", props: ["Ammunition (40/120)", "Loading", "Two-Handed"], mastery: "Slow" },
+        "Pistol": { type: "Martial", cat: "Ranged", dmg: "1d10", dtype: "piercing", props: ["Ammunition (30/90)", "Loading"], mastery: "Vex" }
+    };
 
     // DB Setup
     const DB_NAME = 'DndDataDB';
@@ -246,9 +290,82 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
                             }
                         }
+
+                        // Load Weapons from baseitem
+                        if (json.baseitem && Array.isArray(json.baseitem)) {
+                            json.baseitem.forEach(item => {
+                                if (item.weaponCategory) {
+                                    const name = item.name;
+                                    const type = item.weaponCategory.toLowerCase() === "martial" ? "Martial" : "Simple";
+                                    const rawType = (item.type || "").split('|')[0];
+                                    const cat = (rawType === "R" || rawType === "F") ? "Ranged" : "Melee";
+                                    const dmg = item.dmg1 || "";
+                                    const dmgTypeMap = { "S": "slashing", "P": "piercing", "B": "bludgeoning" };
+                                    const dtype = dmgTypeMap[item.dmgType] || item.dmgType || "";
+                                    
+                                    const propMap = {
+                                        "L": "Light", "F": "Finesse", "T": "Thrown", "2H": "Two-Handed", 
+                                        "H": "Heavy", "R": "Reach", "V": "Versatile", "LD": "Loading", "A": "Ammunition"
+                                    };
+                                    
+                                    const props = [];
+                                    if (item.property) {
+                                        item.property.forEach(p => {
+                                            const pStr = typeof p === 'string' ? p : (p.uid || p.name || "");
+                                            const cleanP = pStr.split('|')[0];
+                                            let propName = propMap[cleanP] || cleanP;
+                                            if (cleanP === "T" || cleanP === "A") {
+                                                if (item.range) {
+                                                    if (typeof item.range === 'string') {
+                                                        propName += ` (${item.range})`;
+                                                    } else if (item.range.normal) {
+                                                    propName += ` (${item.range.normal}/${item.range.long})`;
+                                                    }
+                                                }
+                                            }
+                                            if (cleanP === "V" && item.dmg2) {
+                                                propName += ` (${item.dmg2})`;
+                                            }
+                                            props.push(propName);
+                                        });
+                                    }
+
+                                    let mastery = item.mastery || null;
+                                    if (Array.isArray(mastery)) mastery = mastery[0];
+                                    if (mastery) mastery = mastery.split('|')[0];
+                                    dndWeaponsDB[name] = { type, cat, dmg, dtype, props, mastery };
+                                }
+                            });
+                        }
+
+                        // Load Mastery Properties
+                        const scanForMastery = (entries) => {
+                            if (!entries || !Array.isArray(entries)) return;
+                            entries.forEach(e => {
+                                if (e.name === "Mastery Properties" && e.entries) {
+                                    e.entries.forEach(prop => {
+                                        if (prop.name && prop.entries) {
+                                            allMasteryProperties[prop.name] = processEntries(prop.entries);
+                                        }
+                                    });
+                                }
+                                if (e.entries) scanForMastery(e.entries);
+                            });
+                        };
+                        if (json.data) scanForMastery(json.data);
+                        if (json.entries) scanForMastery(json.entries);
+                        
+                        if (json.itemMastery && Array.isArray(json.itemMastery)) {
+                            json.itemMastery.forEach(m => {
+                                if (m.name && m.entries) {
+                                    allMasteryProperties[m.name] = processEntries(m.entries);
+                                }
+                            });
+                        }
                     } catch (e) {}
                 });
                 console.log("All Optional Features:", allOptionalFeatures);
+                console.log("All Mastery Properties:", allMasteryProperties);
             }
         } catch (e) { console.error("Error loading DB:", e); }
     }
@@ -488,6 +605,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderOptionalFeatures(div, codes, selectedClass, f.level, selectedSubclass);
             } else if (f.name.includes("Metamagic")) {
                 renderOptionalFeatures(div, ["MM"], selectedClass, f.level, selectedSubclass);
+            } else if (f.name === "Weapon Mastery") {
+                renderWeaponMasteryChoices(div, f, selectedClass, f.level);
             }
 
             // Check for Feats in entries and render them
@@ -1308,6 +1427,133 @@ document.addEventListener('DOMContentLoaded', () => {
         parentElement.appendChild(container);
     }
 
+    function renderWeaponMasteryChoices(parentElement, feature, className, charLevel) {
+        // 1. Determine Count from Class Table
+        let count = 2; // Default
+        const clsObj = allClasses.find(c => c.name === className && c.source === currentClassSource);
+        if (clsObj && clsObj.classTableGroups) {
+            for (const group of clsObj.classTableGroups) {
+                if (!group.colLabels) continue;
+                const colIndex = group.colLabels.findIndex(l => l.includes("Weapon Mastery"));
+                if (colIndex !== -1 && group.rows && group.rows[charLevel - 1]) {
+                    let val = group.rows[charLevel - 1][colIndex];
+                    if (typeof val === 'object' && val.value !== undefined) val = val.value;
+                    const parsed = parseInt(val);
+                    if (!isNaN(parsed)) count = parsed;
+                }
+            }
+        }
+
+        // 2. Parse Filters
+        if (typeof dndWeaponsDB === 'undefined') return;
+        
+        if (Object.keys(dndWeaponsDB).length === 0) {
+             container.innerHTML = "<div style='color:var(--red); font-style:italic;'>No weapon data loaded. Please upload items data (items-base.json).</div>";
+             parentElement.appendChild(container);
+             return;
+        }
+
+        const validWeapons = new Set();
+        const entriesStr = JSON.stringify(feature.entries);
+        const filterRegex = /{@filter ([^|]+)\|items\|([^}]+)}/g;
+        let match;
+        let hasFilters = false;
+
+        while ((match = filterRegex.exec(entriesStr)) !== null) {
+            hasFilters = true;
+            const params = match[2];
+            const criteria = {};
+            params.split(';').forEach(p => {
+                const parts = p.split('=');
+                if (parts.length >= 2) {
+                    criteria[parts[0].trim().toLowerCase()] = parts[1].trim();
+                }
+            });
+
+            Object.entries(dndWeaponsDB).forEach(([name, w]) => {
+                if (!w.mastery) return;
+                let isValid = true;
+                if (criteria['type']) {
+                    const typeReq = criteria['type'].toLowerCase();
+                    if (typeReq.includes('simple') && w.type !== 'Simple') isValid = false;
+                    if (typeReq.includes('martial') && w.type !== 'Martial') isValid = false;
+                }
+                if (criteria['melee weapon'] && w.cat !== 'Melee') isValid = false;
+                if (criteria['ranged weapon'] && w.cat !== 'Ranged') isValid = false;
+                
+                if (isValid) validWeapons.add(name);
+            });
+        }
+
+        if (!hasFilters) {
+             Object.entries(dndWeaponsDB).forEach(([name, w]) => {
+                if (w.mastery) validWeapons.add(name);
+            });
+        }
+
+        const sortedWeapons = Array.from(validWeapons).sort();
+
+        const container = document.createElement('div');
+        container.style.marginTop = "10px";
+        container.style.padding = "10px";
+        container.style.background = "rgba(255,255,255,0.5)";
+        container.style.border = "1px solid var(--gold)";
+        container.style.borderRadius = "4px";
+
+        container.innerHTML = `<div style="font-weight:bold; margin-bottom:8px; border-bottom:1px solid var(--gold-dark);">Choose ${count} Weapon Masteries:</div>`;
+        
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Search weapons...';
+        searchInput.style.width = '100%';
+        searchInput.style.marginBottom = '8px';
+        searchInput.style.padding = '4px';
+        searchInput.style.border = '1px solid var(--gold)';
+        searchInput.style.borderRadius = '4px';
+        searchInput.oninput = () => {
+            const term = searchInput.value.toLowerCase();
+            grid.querySelectorAll('.checklist-item').forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(term) ? 'flex' : 'none';
+            });
+        };
+        container.appendChild(searchInput);
+        
+        const grid = document.createElement('div');
+        grid.style.display = "grid";
+        grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(200px, 1fr))";
+        grid.style.gap = "8px";
+
+        sortedWeapons.forEach(wName => {
+            const w = dndWeaponsDB[wName];
+            const key = `Mastery: ${wName}`;
+            const isSelected = selectedOptionalFeatures.has(key);
+            const div = document.createElement('div');
+            div.className = 'checklist-item';
+            div.style.padding = "4px 8px";
+            div.style.fontSize = "0.9rem";
+            div.style.justifyContent = "space-between";
+            
+            const masteryDesc = allMasteryProperties[w.mastery] || "See rules.";
+            const tooltip = masteryDesc.replace(/<[^>]*>/g, '');
+            
+            div.innerHTML = `<span>${wName}</span> <span title="${tooltip}" style="font-size:0.8rem; font-style:italic; cursor:help; border-bottom:1px dotted var(--ink-light);">${w.mastery}</span>`;
+            if (isSelected) { div.style.background = 'var(--red)'; div.style.color = 'white'; }
+            div.onclick = () => {
+                if (selectedOptionalFeatures.has(key)) selectedOptionalFeatures.delete(key);
+                else {
+                    let current = 0; selectedOptionalFeatures.forEach(k => { if(k.startsWith("Mastery: ")) current++; });
+                    if (current < count) selectedOptionalFeatures.add(key);
+                    else alert(`Limit ${count} reached.`);
+                }
+                renderClassFeatures();
+            };
+            grid.appendChild(div);
+        });
+        container.appendChild(grid);
+        parentElement.appendChild(container);
+    }
+
     function renderGrantedSpells() {
         const container = document.getElementById('creator-granted-spells');
         const wrapper = document.getElementById('creator-granted-spells-container');
@@ -2102,6 +2348,26 @@ document.addEventListener('DOMContentLoaded', () => {
         classFeats.forEach(f => {
             let desc = processEntries(f.entries);
             features.push({ title: f.name, desc: cleanText(desc), type: 'class' });
+        });
+
+        // Optional Features (Invocations, Masteries, etc.)
+        selectedOptionalFeatures.forEach(name => {
+            if (name.startsWith("Mastery: ")) {
+                const wName = name.replace("Mastery: ", "");
+                const w = (typeof dndWeaponsDB !== 'undefined') ? dndWeaponsDB[wName] : { mastery: "Unknown" };
+                features.push({ 
+                    title: `Weapon Mastery: ${wName}`, 
+                    desc: `You have mastery with the ${wName}. Property: ${w.mastery || "See rules"}.`, 
+                    type: 'class' 
+                });
+            } else {
+                const candidates = allOptionalFeatures.filter(f => f.name === name);
+                let feat = candidates.find(f => f.source === 'XPHB') || candidates.find(f => f.source === 'PHB') || candidates[0];
+                if (feat) {
+                    let desc = processEntries(feat.entries);
+                    features.push({ title: feat.name, desc: cleanText(desc), type: 'class' });
+                }
+            }
         });
 
         // Species Features
