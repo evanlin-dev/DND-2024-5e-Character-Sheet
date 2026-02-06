@@ -605,3 +605,24 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
   opacity: 1;
   color: var(--red);
 }
+
+/* Character Manager Styles */
+.char-manager-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.char-manager-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  padding: 10px;
+}
+.char-info .char-name { font-weight: bold; color: var(--red-dark); font-family: "Cinzel", serif; }
+.char-info .char-details { font-size: 0.85rem; color: var(--ink-light); }
+.char-actions { display: flex; gap: 10px; align-items: center; }

@@ -389,15 +389,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const step3 = document.getElementById('step-3-section');
+        const step4 = document.getElementById('step-4-review');
+
         if (step3.style.display === 'none') {
             step3.style.display = 'block';
             renderBackgroundOptions();
             renderSpeciesSection();
             renderAbilityScoreSection();
             step3.scrollIntoView({ behavior: 'smooth' });
-            // nextBtn.textContent = "Finish"; // Optional: Change button text
-        } else {
-            console.log(`Selected: ${selectedClass}, Level: ${selectedLevel}, Subclass: ${selectedSubclass}, Background: ${selectedBackground}`);
+            nextBtn.textContent = "Review & Finish";
+        } else if (!step4) {
+            renderReviewSection();
+            nextBtn.style.display = 'none'; // Hide next button, replaced by Create
         }
         // Future steps will go here
     });
@@ -1788,5 +1791,177 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         };
+    }
+
+    function renderReviewSection() {
+        const step3 = document.getElementById('step-3-section');
+        const container = document.createElement('div');
+        container.id = 'step-4-review';
+        container.style.marginTop = "30px";
+        container.style.borderTop = "2px solid var(--gold)";
+        container.style.paddingTop = "20px";
+        
+        const scores = getFinalAbilityScores();
+        const scoreStr = Object.entries(scores).map(([k, v]) => `<strong>${k.slice(0,3)}:</strong> ${v}`).join(', ');
+
+        container.innerHTML = `
+            <h3 class="section-title" style="margin-top:0;">Review Character</h3>
+            <div class="field" style="margin-bottom: 20px;">
+                <span class="field-label">Character Name</span>
+                <input type="text" id="creator-char-name" placeholder="Enter Name" style="font-weight:bold; color:var(--red-dark); font-size:1.2rem;">
+            </div>
+            
+            <div style="background:rgba(255,255,255,0.5); padding:15px; border-radius:4px; border:1px solid var(--gold); margin-bottom:20px; line-height:1.6;">
+                <div><strong>Class:</strong> ${selectedClass} (Level ${selectedLevel})</div>
+                <div><strong>Subclass:</strong> ${selectedSubclass || "None"}</div>
+                <div><strong>Species:</strong> ${selectedSpecies || "None"}</div>
+                <div><strong>Background:</strong> ${selectedBackground || "None"}</div>
+                <div style="margin-top:8px;">${scoreStr}</div>
+            </div>
+
+            <button id="create-char-btn" class="btn" style="width:100%; font-size:1.2rem; padding:15px;">Create Character</button>
+        `;
+        
+        step3.parentNode.appendChild(container);
+        container.scrollIntoView({ behavior: 'smooth' });
+
+        document.getElementById('create-char-btn').addEventListener('click', createCharacter);
+    }
+
+    function getFinalAbilityScores() {
+        const scores = { Strength: 10, Dexterity: 10, Constitution: 10, Intelligence: 10, Wisdom: 10, Charisma: 10 };
+        
+        // 1. Base Scores
+        if (document.getElementById('btn-method-standard').classList.contains('btn')) {
+            document.querySelectorAll('.sa-select').forEach(sel => {
+                if (sel.value) scores[sel.dataset.ability] = parseInt(sel.value);
+            });
+        } else if (document.getElementById('btn-method-pointbuy').classList.contains('btn')) {
+            const rows = document.querySelectorAll('#pb-container > div');
+            rows.forEach(row => {
+                const ability = row.children[0].textContent;
+                const scoreSpan = row.children[1].children[1];
+                if (ability && scoreSpan) scores[ability] = parseInt(scoreSpan.textContent);
+            });
+        } else if (document.getElementById('btn-method-random').classList.contains('btn')) {
+            document.querySelectorAll('.random-select').forEach(sel => {
+                if (sel.value) scores[sel.dataset.ability] = parseInt(sel.value);
+            });
+        }
+
+        // 2. Background ASI
+        const bgMethod = document.getElementById('bg_asi_method')?.value;
+        if (bgMethod === 'flat') {
+            ['bg_asi_s1', 'bg_asi_s2', 'bg_asi_s3'].forEach(id => {
+                const val = document.getElementById(id)?.value;
+                if (val && scores[val]) scores[val] += 1;
+            });
+        } else if (bgMethod === 'split') {
+            const p2 = document.getElementById('bg_asi_p2')?.value;
+            const p1 = document.getElementById('bg_asi_p1')?.value;
+            if (p2 && scores[p2]) scores[p2] += 2;
+            if (p1 && scores[p1]) scores[p1] += 1;
+        }
+
+        return scores;
+    }
+
+    function createCharacter() {
+        const name = document.getElementById('creator-char-name').value;
+        if (!name) { alert("Please enter a character name."); return; }
+
+        const scores = getFinalAbilityScores();
+        
+        // Calculate HP
+        const clsObj = allClasses.find(c => c.name === selectedClass);
+        const hitDie = clsObj && clsObj.hd ? clsObj.hd.faces : 8;
+        const conMod = Math.floor((scores.Constitution - 10) / 2);
+        let hp = hitDie + conMod; // Level 1
+        if (selectedLevel > 1) {
+            hp += (selectedLevel - 1) * (Math.floor(hitDie / 2) + 1 + conMod);
+        }
+
+        // Gather Features
+        const features = [];
+        
+        // Helper for text cleaning
+        const cleanText = (text) => {
+            if (!text) return "";
+            let clean = text;
+            // 1. Replace 5e-tools tags {@tag content|...} -> content
+            clean = clean.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+            // 2. Replace breaks with newlines
+            clean = clean.replace(/<br\s*\/?>/gi, '\n');
+            // 3. Replace list items
+            clean = clean.replace(/<li>/gi, '\n• ');
+            clean = clean.replace(/<\/li>/gi, '');
+            clean = clean.replace(/<ul>/gi, '');
+            clean = clean.replace(/<\/ul>/gi, '\n');
+            // 4. Strip remaining HTML
+            clean = clean.replace(/<[^>]*>/g, '');
+            // 5. Decode entities (basic)
+            clean = clean.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ');
+            return clean.trim();
+        };
+
+        // Class Features
+        const classFeats = allClassFeatures.filter(f => 
+            f.className === selectedClass && 
+            f.source === currentClassSource &&
+            (!f.subclassShortName || f.subclassShortName === selectedSubclass) && 
+            f.level <= selectedLevel
+        );
+        classFeats.forEach(f => {
+            let desc = processEntries(f.entries);
+            features.push({ title: f.name, desc: cleanText(desc), type: 'class' });
+        });
+
+        // Species Features
+        const speciesCandidates = allSpecies.filter(r => r.name === selectedSpecies);
+        let race = speciesCandidates.find(r => r.source === 'XPHB') || speciesCandidates[0];
+        if (race && race.entries) {
+            race.entries.forEach(e => {
+                if (e.name) {
+                    let desc = processEntries(e.entries || e);
+                    features.push({ title: e.name, desc: cleanText(desc), type: 'race' });
+                }
+            });
+        }
+
+        // Background Features
+        const bgCandidates = allBackgrounds.filter(b => b.name === selectedBackground);
+        let bg = bgCandidates.find(b => b.source === 'XPHB') || bgCandidates[0];
+        if (bg && bg.entries) {
+             let desc = processEntries(bg.entries);
+             features.push({ title: "Background Feature", desc: cleanText(desc), type: 'background' });
+        }
+
+        const charData = {
+            charID: crypto.randomUUID(),
+            charName: name,
+            charClass: selectedClass,
+            level: selectedLevel,
+            charSubclass: selectedSubclass || "",
+            race: selectedSpecies || "",
+            background: selectedBackground || "",
+            str: scores.Strength,
+            dex: scores.Dexterity,
+            con: scores.Constitution,
+            int: scores.Intelligence,
+            wis: scores.Wisdom,
+            cha: scores.Charisma,
+            hp: hp,
+            maxHp: hp,
+            hitDice: `${selectedLevel}d${hitDie}`,
+            profBonus: Math.ceil(selectedLevel / 4) + 1,
+            classFeatures: features.filter(f => f.type === 'class'),
+            raceFeatures: features.filter(f => f.type === 'race'),
+            backgroundFeatures: features.filter(f => f.type === 'background'),
+            feats: [], // Could parse feats from selections if needed
+            spellsList: Array.from(selectedSpells).map(s => ({ name: s, level: 1, prepared: false })) // Simplified spell mapping
+        };
+
+        localStorage.setItem('dndCharacter', JSON.stringify(charData));
+        window.location.href = 'index.html';
     }
 });

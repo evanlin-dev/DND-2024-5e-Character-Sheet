@@ -1420,6 +1420,7 @@
      };
 
      const characterData = {
+       charID: document.getElementById("charID")?.value || "",
        charName: document.getElementById("charName").value,
        charClass: document.getElementById("charClass").value,
        charSubclass: document.getElementById("charSubclass").value,
@@ -1585,6 +1586,114 @@
        }
    };
 
+   /* =========================================
+      CHARACTER MANAGER (Multi-Character)
+      ========================================= */
+   window.openCharacterManager = function() {
+       // Ensure modal exists
+       let modal = document.getElementById("charManagerModal");
+       if (!modal) {
+           modal = document.createElement("div");
+           modal.id = "charManagerModal";
+           modal.className = "info-modal-overlay";
+           modal.innerHTML = `
+               <div class="info-modal-content" style="max-width: 500px;">
+                   <button class="close-modal-btn" onclick="document.getElementById('charManagerModal').style.display='none'">&times;</button>
+                   <h3 class="info-modal-title">Character Library</h3>
+                   
+                   <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--gold);">
+                       <h4 style="margin-bottom: 10px; color: var(--ink);">Current Character</h4>
+                       <div style="display: flex; gap: 10px;">
+                           <button class="btn" onclick="saveCurrentToLibrary()" style="flex: 1; font-size: 0.9rem;">Save to Library</button>
+                           <button class="btn btn-secondary" onclick="createNewCharacter()" style="flex: 1; font-size: 0.9rem;">New Character</button>
+                       </div>
+                       <div style="margin-top: 8px; font-size: 0.85rem; color: var(--ink-light); font-style: italic;">
+                           "Save to Library" stores the current sheet so you can switch back to it later.
+                       </div>
+                   </div>
+
+                   <h4 style="margin-bottom: 10px; color: var(--ink);">Saved Characters</h4>
+                   <div id="charManagerList" class="char-manager-list"></div>
+               </div>
+           `;
+           document.body.appendChild(modal);
+       }
+
+       renderCharacterLibrary();
+       modal.style.display = "flex";
+   };
+
+   window.renderCharacterLibrary = function() {
+       const list = document.getElementById("charManagerList");
+       list.innerHTML = "";
+       const library = JSON.parse(localStorage.getItem("dndLibrary") || "{}");
+       const ids = Object.keys(library);
+
+       if (ids.length === 0) {
+           list.innerHTML = '<div style="text-align: center; color: var(--ink-light); padding: 10px;">No saved characters.</div>';
+           return;
+       }
+
+       ids.forEach(id => {
+           const char = library[id];
+           const div = document.createElement("div");
+           div.className = "char-manager-item";
+           div.innerHTML = `
+               <div class="char-info">
+                   <div class="char-name">${char.charName || "Unnamed"}</div>
+                   <div class="char-details">Lvl ${char.level || 1} ${char.charClass || "Adventurer"}</div>
+               </div>
+               <div class="char-actions">
+                   <button class="btn btn-secondary" onclick="loadFromLibrary('${id}')" style="padding: 4px 8px; font-size: 0.8rem;">Load</button>
+                   <button class="delete-feature-btn" onclick="deleteFromLibrary('${id}')" title="Delete">&times;</button>
+               </div>
+           `;
+           list.appendChild(div);
+       });
+   };
+
+   window.saveCurrentToLibrary = function() {
+       let charID = document.getElementById("charID").value;
+       if (!charID) {
+           charID = crypto.randomUUID();
+           document.getElementById("charID").value = charID;
+           saveCharacter(); // Save ID to current state
+       }
+       
+       const currentData = JSON.parse(localStorage.getItem("dndCharacter"));
+       const library = JSON.parse(localStorage.getItem("dndLibrary") || "{}");
+       
+       library[charID] = currentData;
+       localStorage.setItem("dndLibrary", JSON.stringify(library));
+       renderCharacterLibrary();
+       alert("Character saved to library!");
+   };
+
+   window.loadFromLibrary = function(id) {
+       if (!confirm("Load this character? Unsaved changes to the current sheet will be lost if not saved to the library.")) return;
+       
+       const library = JSON.parse(localStorage.getItem("dndLibrary") || "{}");
+       const data = library[id];
+       if (data) {
+           localStorage.setItem("dndCharacter", JSON.stringify(data));
+           location.reload();
+       }
+   };
+
+   window.deleteFromLibrary = function(id) {
+       if (!confirm("Permanently delete this character from the library?")) return;
+       const library = JSON.parse(localStorage.getItem("dndLibrary") || "{}");
+       delete library[id];
+       localStorage.setItem("dndLibrary", JSON.stringify(library));
+       renderCharacterLibrary();
+   };
+
+   window.createNewCharacter = function() {
+       if (!confirm("Create new character? Make sure to save your current one to the library first!")) return;
+       localStorage.removeItem("dndCharacter");
+       location.reload();
+   };
+
    window.resetSheet = function () {
      if (confirm("Clear all data? This cannot be undone.")) { localStorage.removeItem("dndCharacter"); location.reload(); }
    };
@@ -1596,6 +1705,26 @@
      // Guard clause: Only run initialization if we are on the character sheet (checking for charName input)
      if (!document.getElementById("charName")) return;
      
+     // Inject Character ID hidden input if missing
+     if (!document.getElementById("charID")) {
+         const input = document.createElement("input");
+         input.type = "hidden";
+         input.id = "charID";
+         document.body.appendChild(input);
+     }
+
+     // Inject Characters Button
+     const actionsDiv = document.querySelector(".sheet-actions");
+     if (actionsDiv) {
+         const btn = document.createElement("button");
+         btn.className = "btn btn-secondary";
+         btn.innerText = "Characters";
+         btn.style.marginRight = "10px";
+         btn.onclick = window.openCharacterManager;
+         // Insert as first item
+         actionsDiv.insertBefore(btn, actionsDiv.firstChild);
+     }
+
      window.isInitializing = true;
      
      try {
