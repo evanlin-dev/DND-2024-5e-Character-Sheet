@@ -23,6 +23,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedSpeciesOptionFeature = null;
     let selectedSpecies = null;
     let allMasteryProperties = {};
+    let allItems = [];
+
+    // Helper for Equipment Selection UI
+    window.updateEquipSelection = function(radio) {
+        const container = radio.closest('.equip-selection-container');
+        container.querySelectorAll('.equip-option-box').forEach(box => {
+            box.classList.remove('selected');
+            box.style.borderColor = 'var(--gold)';
+            box.style.background = 'white';
+            const ind = box.querySelector('.check-indicator');
+            if(ind) ind.style.display = 'none';
+        });
+        const selectedBox = radio.closest('.equip-option-box');
+        selectedBox.classList.add('selected');
+        selectedBox.style.borderColor = 'var(--red)';
+        selectedBox.style.background = 'var(--parchment)';
+        const ind = selectedBox.querySelector('.check-indicator');
+        if(ind) ind.style.display = 'block';
+    };
 
     // Weapon DB (Copied for Character Creator)
     const dndWeaponsDB = {
@@ -261,6 +280,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (json.subrace && Array.isArray(json.subrace)) {
                             for (const s of json.subrace) allSubraces.push(s);
                         }
+
+                        // Load Items for Description Lookup
+                        [json.item, json.items, json.baseitem, json.baseitems, json.magicvariant, json.magicvariants].forEach(arr => {
+                            if (Array.isArray(arr)) {
+                                for (const i of arr) {
+                                    if (i.name) allItems.push(i);
+                                }
+                            }
+                        });
                         
                         // Robust spell loading with enrichment
                         const spells = json.spell || json.spells || json.data;
@@ -989,15 +1017,77 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Starting Equipment
         if (clsObj.startingEquipment) {
-             let equipText = "See class description.";
-             if (clsObj.startingEquipment.entries) {
-                 equipText = clsObj.startingEquipment.entries.join(' ');
-             } else if (clsObj.startingEquipment.default) {
-                 equipText = clsObj.startingEquipment.default.join(', ');
+             let equipItems = [];
+             if (clsObj.startingEquipment.default) {
+                 equipItems = clsObj.startingEquipment.default;
+             } else if (clsObj.startingEquipment.entries) {
+                 equipItems = clsObj.startingEquipment.entries;
              }
+
              // Clean tags
-             equipText = equipText.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
-             html += makeRow("Starting Equipment", equipText);
+             const clean = (str) => str.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+             
+             // Check for A/B split
+             const fullText = equipItems.join(' ');
+             const splitRegex = /(?:choose|option).*?\(a\)\s*(.*?)(?:;?\s*(?:or|and)?\s*\(b\)\s*)(.*)/i;
+             const match = fullText.match(splitRegex);
+             
+             html += `<div style="margin-bottom:15px;">`;
+             html += `<h4 style="margin:10px 0 8px 0; color:var(--red-dark); font-family:'Cinzel',serif;">Starting Equipment</h4>`;
+             html += `<div class="equip-selection-container" style="display:flex; gap:15px; flex-wrap:wrap;">`;
+             
+             if (match) {
+                 const optA = clean(match[1]);
+                 const optB = clean(match[2]);
+
+                 // Option A
+                 html += `
+                 <label class="equip-option-box selected" style="flex:1; min-width:250px; border:2px solid var(--red); background:var(--parchment); padding:15px; border-radius:6px; cursor:pointer; transition:all 0.2s; position:relative; display:flex; flex-direction:column;">
+                    <input type="radio" name="class_equip_choice" value="equipment_a" checked style="display:none;" onchange="window.updateEquipSelection(this)">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--gold); padding-bottom:8px; margin-bottom:8px;">
+                        <span style="font-weight:bold; color:var(--red-dark); font-size:1.05rem;">Option A</span>
+                        <span class="check-indicator" style="color:var(--red); font-weight:bold; font-size:1.2rem;">✓</span>
+                    </div>
+                    <div style="font-size:0.9rem; color:var(--ink); line-height:1.4; flex-grow:1;">${optA}</div>
+                    <input type="hidden" id="equip-opt-a-val" value="${optA.replace(/"/g, '&quot;')}">
+                 </label>`;
+
+                 // Option B
+                 html += `
+                 <label class="equip-option-box" style="flex:1; min-width:250px; border:1px solid var(--gold); background:white; padding:15px; border-radius:6px; cursor:pointer; transition:all 0.2s; position:relative; display:flex; flex-direction:column;">
+                    <input type="radio" name="class_equip_choice" value="equipment_b" style="display:none;" onchange="window.updateEquipSelection(this)">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--gold); padding-bottom:8px; margin-bottom:8px;">
+                        <span style="font-weight:bold; color:var(--red-dark); font-size:1.05rem;">Option B</span>
+                        <span class="check-indicator" style="display:none; color:var(--red); font-weight:bold; font-size:1.2rem;">✓</span>
+                    </div>
+                    <div style="font-size:0.9rem; color:var(--ink); line-height:1.4; flex-grow:1;">${optB}</div>
+                    <input type="hidden" id="equip-opt-b-val" value="${optB.replace(/"/g, '&quot;')}">
+                 </label>`;
+             } else {
+                 let equipListHtml = "";
+                 if (equipItems.length > 0) {
+                     equipListHtml = "<ul style='padding-left:20px; margin:5px 0;'>";
+                     equipItems.forEach(item => {
+                         equipListHtml += `<li style="margin-bottom:2px;">${clean(item)}</li>`;
+                     });
+                     equipListHtml += "</ul>";
+                 } else {
+                     equipListHtml = "See class description.";
+                 }
+
+                 html += `
+                 <label class="equip-option-box selected" style="flex:1; min-width:250px; border:2px solid var(--red); background:var(--parchment); padding:15px; border-radius:6px; cursor:pointer; transition:all 0.2s; position:relative; display:flex; flex-direction:column;">
+                    <input type="radio" name="class_equip_choice" value="equipment" checked style="display:none;" onchange="window.updateEquipSelection(this)">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--gold); padding-bottom:8px; margin-bottom:8px;">
+                        <span style="font-weight:bold; color:var(--red-dark); font-size:1.05rem;">Standard Equipment</span>
+                        <span class="check-indicator" style="color:var(--red); font-weight:bold; font-size:1.2rem;">✓</span>
+                    </div>
+                    <div style="font-size:0.9rem; color:var(--ink); line-height:1.4; flex-grow:1;">${equipListHtml}</div>
+                 </label>`;
+             }
+
+             
+             html += `</div></div>`;
         }
 
         // Multiclassing
@@ -2216,6 +2306,142 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 container.innerHTML = "No description available.";
             }
+
+            // Add Equipment Choice Section
+            const equipDiv = document.createElement('div');
+            equipDiv.className = 'feature-box';
+            equipDiv.style.marginTop = '15px';
+            equipDiv.style.border = '2px solid var(--gold)';
+            
+            let optAText = "";
+            let optBText = "";
+            let hasOptions = false;
+
+            // Try Structured Data first
+            if (bg.startingEquipment && bg.startingEquipment.length > 0) {
+                const se = bg.startingEquipment[0];
+                
+                const parseItems = (arr) => {
+                    if (!arr) return "";
+                    return arr.map(i => {
+                        if (typeof i === 'string') {
+                            let name = i.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+                            name = name.split('|')[0];
+                            return name.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                        }
+                        if (i.special) return i.special;
+                        if (i.item) {
+                            let name = i.displayName || i.item.split('|')[0];
+                            name = name.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+                            name = name.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                            if (i.quantity && i.quantity > 1) name += ` (${i.quantity})`;
+                            return name;
+                        }
+                        if (i.value) {
+                            const gp = i.value / 100;
+                            return `${gp} GP`;
+                        }
+                        return "";
+                    }).filter(Boolean).join(', ');
+                };
+
+                if (se.A || se.B || se.a || se.b) {
+                    hasOptions = true;
+                    optAText = parseItems(se.A || se.a);
+                    optBText = parseItems(se.B || se.b);
+                } else if (se.default) {
+                    optAText = parseItems(se.default);
+                } else if (se.items) {
+                    optAText = parseItems(se.items);
+                } else if (se.entries) {
+                    optAText = parseItems(se.entries);
+                } else if (typeof se === 'string' || se.item) {
+                    optAText = parseItems(bg.startingEquipment);
+                }
+            }
+
+            // Find Equipment Entry
+            let equipText = "";
+            const findEquip = (entries) => {
+                if (!entries) return false;
+                for (const e of entries) {
+                    if (typeof e === 'object' && e.name) {
+                        const name = e.name.toLowerCase();
+                        if (name.includes("equipment")) {
+                            if (e.entries) equipText = processEntries(e.entries);
+                            else if (e.entry) equipText = (typeof e.entry === 'string' ? e.entry : processEntries([e.entry]));
+                            return true;
+                        }
+                    }
+                    if (typeof e === 'object' && e.entries) {
+                        if (findEquip(e.entries)) return true;
+                    }
+                }
+                return false;
+            };
+            
+            if (!hasOptions && !optAText) {
+                findEquip(bg.entries);
+                const cleanTags = (str) => str.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+                const stripHtml = (str) => str.replace(/<[^>]*>/g, '');
+                
+                const textForMatch = stripHtml(cleanTags(equipText));
+                const splitRegex = /(?:choose|option)?.*?(?:^|[\s\.,])\(a\)\s*(.*?)(?:;?\s*(?:or|and)?\s*\(b\)\s*)(.*)/i;
+                const match = textForMatch.match(splitRegex);
+
+                if (match) {
+                    hasOptions = true;
+                    optAText = match[1].trim();
+                    optBText = match[2].trim();
+                } else {
+                    optAText = cleanTags(equipText) || "Standard background items.";
+                }
+            }
+
+            let html = `
+                <div class="feature-header" style="border-bottom: 1px solid var(--gold); margin-bottom: 10px;">
+                    <strong>Background Equipment</strong>
+                </div>
+                <div class="equip-selection-container" style="display:flex; gap:10px; flex-wrap:wrap;">
+            `;
+
+            if (hasOptions) {
+                html += `
+                     <label class="equip-option-box selected" style="flex:1; min-width:200px; border:2px solid var(--red); background:var(--parchment); padding:10px; border-radius:6px; cursor:pointer; transition:all 0.2s; position:relative;">
+                        <input type="radio" name="bg_equip_choice" value="equipment_a" checked style="display:none;" onchange="window.updateEquipSelection(this)">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--gold); padding-bottom:5px; margin-bottom:5px;">
+                            <span style="font-weight:bold; color:var(--red-dark);">Option A</span>
+                            <span class="check-indicator" style="color:var(--red); font-weight:bold;">✓</span>
+                        </div>
+                        <div style="font-size:0.85rem; color:var(--ink); flex-grow:1;">${optAText}</div>
+                        <input type="hidden" id="bg-equip-opt-a-val" value="${optAText.replace(/"/g, '&quot;')}">
+                     </label>
+                     <label class="equip-option-box" style="flex:1; min-width:200px; border:1px solid var(--gold); background:white; padding:10px; border-radius:6px; cursor:pointer; transition:all 0.2s; position:relative;">
+                        <input type="radio" name="bg_equip_choice" value="equipment_b" style="display:none;" onchange="window.updateEquipSelection(this)">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--gold); padding-bottom:5px; margin-bottom:5px;">
+                            <span style="font-weight:bold; color:var(--red-dark);">Option B</span>
+                            <span class="check-indicator" style="display:none; color:var(--red); font-weight:bold;">✓</span>
+                        </div>
+                        <div style="font-size:0.85rem; color:var(--ink); flex-grow:1;">${optBText}</div>
+                        <input type="hidden" id="bg-equip-opt-b-val" value="${optBText.replace(/"/g, '&quot;')}">
+                     </label>
+                `;
+            } else {
+                html += `
+                     <label class="equip-option-box selected" style="flex:1; min-width:200px; border:2px solid var(--red); background:var(--parchment); padding:10px; border-radius:6px; cursor:pointer; transition:all 0.2s; position:relative; display:flex; flex-direction:column;">
+                        <input type="radio" name="bg_equip_choice" value="equipment" checked style="display:none;" onchange="window.updateEquipSelection(this)">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--gold); padding-bottom:5px; margin-bottom:5px;">
+                            <span style="font-weight:bold; color:var(--red-dark);">Equipment</span>
+                            <span class="check-indicator" style="color:var(--red); font-weight:bold;">✓</span>
+                        </div>
+                        <div style="font-size:0.85rem; color:var(--ink); flex-grow:1;">${optAText}</div>
+                        <input type="hidden" id="bg-equip-default-val" value="${optAText.replace(/"/g, '&quot;')}">
+                     </label>
+                `;
+            }
+            html += `</div>`;
+            equipDiv.innerHTML = html;
+            container.appendChild(equipDiv);
         }
     }
 
@@ -2760,6 +2986,113 @@ document.addEventListener('DOMContentLoaded', () => {
         let spellAbility = "";
         let spellSlotsData = [];
 
+        // Inventory & Gold Logic
+        const inventory = [];
+        let cp = 0, sp = 0, ep = 0, gp = 0, pp = 0;
+
+        // Helper to add items from string list
+        const addItemsFromList = (listStr, sourceLabel) => {
+            if (!listStr) return;
+            // Split by comma, ignoring commas inside parentheses
+            const items = listStr.split(/,\s*(?![^(]*\))/).map(s => s.trim()).filter(s => s);
+            
+            items.forEach(itemStr => {
+                let name = itemStr;
+                let qty = 1;
+                
+                // Check for "Name (x)" or "Name (Qty)" pattern
+                const qtyMatch = itemStr.match(/(.*)\s*\((\d+)\)$/);
+                if (qtyMatch) {
+                    name = qtyMatch[1].trim();
+                    qty = parseInt(qtyMatch[2]);
+                }
+                
+                // Check for GP values in list (e.g. "10 GP" or "and 10 GP")
+                const gpMatch = name.match(/^(?:and\s+)?(\d+)\s*GP[\s.]*$/i);
+                if (gpMatch) {
+                    gp += parseInt(gpMatch[1]) * qty;
+                    return; 
+                }
+
+                // Check for embedded GP (e.g. "Item (and 10 GP)")
+                const embeddedGpMatch = name.match(/(.*?)\s*\(\s*(?:and\s+)?(\d+)\s*GP\s*\)[\s.]*$/i);
+                if (embeddedGpMatch) {
+                    name = embeddedGpMatch[1].trim();
+                    gp += parseInt(embeddedGpMatch[2]) * qty;
+                }
+
+                // Check for trailing GP (e.g. "Item and 10 GP")
+                const trailingGpMatch = name.match(/(.*?)(?:,?\s+and)\s+(\d+)\s*GP[\s.]*$/i);
+                if (trailingGpMatch) {
+                    name = trailingGpMatch[1].trim();
+                    gp += parseInt(trailingGpMatch[2]) * qty;
+                }
+
+                // Lookup description
+                let desc = sourceLabel;
+                let foundItem = allItems.find(i => i.name.toLowerCase() === name.toLowerCase());
+                if (!foundItem && name.toLowerCase().endsWith('s')) {
+                     foundItem = allItems.find(i => i.name.toLowerCase() === name.toLowerCase().slice(0, -1));
+                }
+
+                if (foundItem) {
+                    if (foundItem.entries) desc = processEntries(foundItem.entries);
+                    else if (foundItem.desc) desc = processEntries(foundItem.desc);
+                    else if (foundItem.description) desc = foundItem.description;
+                    
+                    desc = cleanText(desc);
+                }
+
+                inventory.push({ name: name, qty: qty, weight: 0, equipped: false, description: desc });
+            });
+        };
+
+        // Class Equipment
+        const classEquipChoice = document.querySelector('input[name="class_equip_choice"]:checked')?.value;
+        if (classEquipChoice === 'equipment_a') {
+             const val = document.getElementById('equip-opt-a-val')?.value;
+             addItemsFromList(val, "Class Equipment (Option A)");
+        } else if (classEquipChoice === 'equipment_b') {
+             const val = document.getElementById('equip-opt-b-val')?.value;
+             addItemsFromList(val, "Class Equipment (Option B)");
+        } else {
+             if (clsObj && clsObj.startingEquipment) {
+                 if (clsObj.startingEquipment.default) {
+                     clsObj.startingEquipment.default.forEach(itemStr => {
+                         let clean = itemStr.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+                         inventory.push({ name: clean, qty: 1, weight: 0, equipped: false, description: "Class Starting Equipment" });
+                     });
+                 } else {
+                     inventory.push({ name: "Class Equipment", qty: 1, weight: 0, equipped: false, description: "See Class description for items." });
+                 }
+             }
+        }
+
+        // Background Equipment
+        const bgEquipChoice = document.querySelector('input[name="bg_equip_choice"]:checked')?.value;
+        if (bgEquipChoice === 'gold') {
+            gp += 50;
+        } else if (bgEquipChoice === 'equipment_a') {
+             const val = document.getElementById('bg-equip-opt-a-val')?.value;
+             addItemsFromList(val, "Background Equipment (Option A)");
+        } else if (bgEquipChoice === 'equipment_b') {
+             const val = document.getElementById('bg-equip-opt-b-val')?.value;
+             if (val) {
+                 if (val.toLowerCase().replace(/[^a-z0-9]/g, '').includes('50gp')) {
+                     gp += 50;
+                 } else {
+                     addItemsFromList(val, "Background Equipment (Option B)");
+                 }
+             }
+        } else {
+            const val = document.getElementById('bg-equip-default-val')?.value;
+            if (val) {
+                addItemsFromList(val, "Background Equipment");
+            } else {
+                inventory.push({ name: "Background Equipment", qty: 1, weight: 0, equipped: false, description: "See Background description for items." });
+            }
+        }
+
         // Capture Class Skills from Dropdowns
         document.querySelectorAll('.skill-select-dropdown').forEach(sel => {
             if (sel.value) {
@@ -3071,6 +3404,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             skillProficiency,
             // New Fields
+            inventory,
+            cp, sp, ep, gp, pp,
             armorLight, armorMedium, armorHeavy, armorShield,
             weaponProfs: weaponProfs.join(", "),
             toolProfs: toolProfs.join(", "),
