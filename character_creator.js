@@ -2863,7 +2863,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Background Tools
             if (bg.toolProficiencies) {
                 bg.toolProficiencies.forEach(entry => {
-                    Object.keys(entry).forEach(k => { if (k !== 'choose') toolProfs.push(k); });
+                    Object.keys(entry).forEach(k => { 
+                        if (k !== 'choose') {
+                            let tName = cleanText(k);
+                            if (tName) toolProfs.push(tName.toLowerCase().split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '));
+                        }
+                    });
                 });
             }
         }
@@ -2899,7 +2904,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     clsObj.startingProficiencies.tools.forEach(t => {
                         let tName = typeof t === 'string' ? t : t.name || t.proficiency;
                         tName = cleanText(tName);
-                        if (tName) toolProfs.push(tName.charAt(0).toUpperCase() + tName.slice(1));
+                        if (tName) {
+                            tName = tName.toLowerCase().split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+                            toolProfs.push(tName);
+                        }
                     });
                 }
             }
