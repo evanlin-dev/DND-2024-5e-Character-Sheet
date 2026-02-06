@@ -453,7 +453,7 @@
       ========================================= */
    const DB_NAME = 'DndDataDB';
    const STORE_NAME = 'files';
-   const DB_VERSION = 4;
+   const DB_VERSION = 5;
 
    function openDB() {
        return new Promise((resolve, reject) => {
@@ -463,8 +463,12 @@
                reject(request.error);
            };
            request.onsuccess = () => resolve(request.result);
+           request.onblocked = (e) => {
+               console.warn("IndexedDB blocked. Please close other tabs.");
+               alert("Database upgrade blocked. Please close other tabs with this site open and reload.");
+           };
            request.onupgradeneeded = (e) => {
-               console.log("IndexedDB upgrade needed");
+               console.log(`IndexedDB upgrade needed: ${e.oldVersion} -> ${e.newVersion}`);
                const db = e.target.result;
                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
            };
@@ -472,7 +476,7 @@
    }
 
    async function checkDataUploadStatus() {
-       console.log("Checking data upload status...");
+       console.log(`Checking data upload status (DB v${DB_VERSION})...`);
        try {
            const db = await openDB();
            const tx = db.transaction(STORE_NAME, 'readonly');
@@ -483,13 +487,12 @@
                const btnCantrips = document.getElementById('btn-search-cantrips-zip');
                const btnSpells = document.getElementById('btn-search-spells-zip');
 
+               console.log("DB Query Result:", req.result ? "Data Found" : "Empty");
                if (req.result) {
-                   console.log("Data found in IndexedDB. Showing search buttons.");
                    if (btnItems) btnItems.style.display = 'inline-block';
                    if (btnCantrips) btnCantrips.style.display = 'inline-block';
                    if (btnSpells) btnSpells.style.display = 'inline-block';
                } else {
-                   console.log("No data found in IndexedDB. Hiding search buttons.");
                    if (btnItems) btnItems.style.display = 'none';
                    if (btnCantrips) btnCantrips.style.display = 'none';
                    if (btnSpells) btnSpells.style.display = 'none';

@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // DB Setup
     const DB_NAME = 'DndDataDB';
     const STORE_NAME = 'files';
-    const DB_VERSION = 4;
+    const DB_VERSION = 5;
 
     // Helper to process entries recursively
     const processEntries = (entries) => {
