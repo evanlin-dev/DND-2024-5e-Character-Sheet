@@ -551,9 +551,9 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAbilityScoreSection();
             step3.scrollIntoView({ behavior: 'smooth' });
             nextBtn.textContent = "Review & Finish";
-        } else if (!step4) {
+        } else {
             renderReviewSection();
-            nextBtn.style.display = 'none'; // Hide next button, replaced by Create
+            nextBtn.textContent = "Update Review";
         }
         // Future steps will go here
     });
@@ -2019,16 +2019,59 @@ document.addEventListener('DOMContentLoaded', () => {
             if (feat) selectedFeatures.push(feat);
         });
 
+        // Add Class Features
+        if (selectedClass) {
+            const classFeats = allClassFeatures.filter(f => 
+                f.className === selectedClass && 
+                f.source === currentClassSource && 
+                !f.subclassShortName && 
+                f.level <= selectedLevel
+            );
+            selectedFeatures.push(...classFeats);
+        }
+
+        // Add Subclass Features
+        if (selectedClass && selectedSubclass) {
+            const subFeats = allSubclassFeatures.filter(f => 
+                f.className === selectedClass && 
+                f.subclassShortName === selectedSubclass && 
+                f.source === selectedSubclassSource && 
+                f.level <= selectedLevel
+            );
+            selectedFeatures.push(...subFeats);
+
+            const subclassObj = allSubclasses.find(s => 
+                s.className === selectedClass && 
+                s.shortName === selectedSubclass && 
+                s.source === selectedSubclassSource
+            );
+            if (subclassObj) selectedFeatures.push(subclassObj);
+        }
+
+        // Add Species Features
+        if (selectedSpecies) {
+             const candidates = allSpecies.filter(r => r.name === selectedSpecies);
+             let race = candidates.find(r => r.source === 'XPHB') || candidates.find(r => r.source === 'PHB') || candidates[0];
+             if (race) selectedFeatures.push(race);
+        }
+
         selectedFeatures.forEach(feat => {
             if (feat.additionalSpells) {
                 feat.additionalSpells.forEach(entry => {
                     // Helper to extract spell names
                     const extract = (obj) => {
                         if (!obj) return;
-                        Object.values(obj).forEach(val => {
+                        Object.entries(obj).forEach(([key, val]) => {
+                            const lvl = parseInt(key);
+                            if (!isNaN(lvl) && selectedLevel < lvl) return;
+
                             if (Array.isArray(val)) {
                                 val.forEach(v => {
-                                    if (typeof v === 'string') spells.add(v.split('#')[0].split('|')[0]);
+                                    if (typeof v === 'string') {
+                                        let name = v.split('#')[0].split('|')[0];
+                                        name = name.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                                        spells.add(name);
+                                    }
                                     else if (v.choose) {
                                         const criteria = formatChoose(v.choose);
                                         choices.push(`Choose ${v.count || 1} from: ${criteria}`);
@@ -2932,6 +2975,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderReviewSection() {
         const step3 = document.getElementById('step-3-section');
+        
+        let currentName = "";
+        const nameInput = document.getElementById('creator-char-name');
+        if (nameInput) currentName = nameInput.value;
+
+        const existing = document.getElementById('step-4-review');
+        if (existing) existing.remove();
+
         const container = document.createElement('div');
         container.id = 'step-4-review';
         container.style.marginTop = "30px";
@@ -2941,11 +2992,130 @@ document.addEventListener('DOMContentLoaded', () => {
         const scores = getFinalAbilityScores();
         const scoreStr = Object.entries(scores).map(([k, v]) => `<strong>${k.slice(0,3)}:</strong> ${v}`).join(', ');
 
+        // Gather Spells for Review
+        const reviewSpells = new Set(selectedSpells);
+        const reviewSpellChoices = [];
+
+        // Helper to format "Choose" strings
+        const formatChoose = (str) => {
+            if (!str) return "";
+            return str.split('|').map(part => {
+                const [key, val] = part.split('=');
+                if (key === 'level') return val === '0' ? 'Cantrips' : `Level ${val} Spells`;
+                if (key === 'class') return `${val} Spells`;
+                if (key === 'components & miscellaneous' && val === 'ritual') return 'Rituals';
+                return part;
+            }).join(', ');
+        };
+
+        // Process selected features for spells
+        const featuresToCheck = [];
+        selectedOptionalFeatures.forEach(name => {
+            let featName = name;
+            if (name.startsWith("ASI Level ")) {
+                featName = name.substring(name.indexOf(':') + 2);
+            } else if (name.startsWith("Mastery: ") || name.startsWith("Primal Knowledge")) {
+                return;
+            }
+            
+            const candidates = allOptionalFeatures.filter(f => f.name === featName);
+            const featCandidates = allFeats.filter(f => f.name === featName);
+            
+            let feat = candidates.find(f => f.source === 'XPHB') || candidates.find(f => f.source === 'PHB') || candidates[0];
+            if (!feat) {
+                feat = featCandidates.find(f => f.source === 'XPHB') || featCandidates.find(f => f.source === 'PHB') || featCandidates[0];
+            }
+            
+            if (feat) featuresToCheck.push(feat);
+        });
+
+        // Add Class Features
+        if (selectedClass) {
+            const classFeats = allClassFeatures.filter(f => 
+                f.className === selectedClass && 
+                f.source === currentClassSource && 
+                !f.subclassShortName && 
+                f.level <= selectedLevel
+            );
+            featuresToCheck.push(...classFeats);
+        }
+
+        // Add Subclass Features
+        if (selectedClass && selectedSubclass) {
+            const subFeats = allSubclassFeatures.filter(f => 
+                f.className === selectedClass && 
+                f.subclassShortName === selectedSubclass && 
+                f.source === selectedSubclassSource && 
+                f.level <= selectedLevel
+            );
+            featuresToCheck.push(...subFeats);
+
+            const subclassObj = allSubclasses.find(s => 
+                s.className === selectedClass && 
+                s.shortName === selectedSubclass && 
+                s.source === selectedSubclassSource
+            );
+            if (subclassObj) featuresToCheck.push(subclassObj);
+        }
+
+        // Add Species Features
+        if (selectedSpecies) {
+             const candidates = allSpecies.filter(r => r.name === selectedSpecies);
+             let race = candidates.find(r => r.source === 'XPHB') || candidates.find(r => r.source === 'PHB') || candidates[0];
+             if (race) featuresToCheck.push(race);
+        }
+
+        featuresToCheck.forEach(feat => {
+            if (feat.additionalSpells) {
+                feat.additionalSpells.forEach(entry => {
+                    const extract = (obj) => {
+                        if (!obj) return;
+                        Object.entries(obj).forEach(([key, val]) => {
+                            const lvl = parseInt(key);
+                            if (!isNaN(lvl) && selectedLevel < lvl) return;
+
+                            if (Array.isArray(val)) {
+                                val.forEach(v => {
+                                    if (typeof v === 'string') {
+                                        let name = v.split('#')[0].split('|')[0];
+                                        name = name.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                                        reviewSpells.add(name);
+                                    }
+                                    else if (v.choose) {
+                                        const criteria = formatChoose(v.choose);
+                                        reviewSpellChoices.push(`Choose ${v.count || 1} from: ${criteria}`);
+                                    }
+                                });
+                            } else if (typeof val === 'object') {
+                                extract(val);
+                            }
+                        });
+                    };
+                    if (entry.innate) extract(entry.innate);
+                    if (entry.known) extract(entry.known);
+                    if (entry.prepared) extract(entry.prepared);
+                });
+            }
+        });
+
+        let spellsHtml = "";
+        if (reviewSpells.size > 0 || reviewSpellChoices.length > 0) {
+            const sortedSpells = Array.from(reviewSpells).sort();
+            spellsHtml = `<div style="margin-top:8px; border-top:1px dashed var(--gold); padding-top:8px;"><strong>Spells:</strong><br>`;
+            if (reviewSpellChoices.length > 0) {
+                spellsHtml += `<em style="font-size:0.9rem; color:var(--ink-light);">${reviewSpellChoices.join('<br>')}</em><br>`;
+            }
+            if (sortedSpells.length > 0) {
+                spellsHtml += sortedSpells.join(', ');
+            }
+            spellsHtml += `</div>`;
+        }
+
         container.innerHTML = `
             <h3 class="section-title" style="margin-top:0;">Review Character</h3>
             <div class="field" style="margin-bottom: 20px;">
                 <span class="field-label">Character Name</span>
-                <input type="text" id="creator-char-name" placeholder="Enter Name" style="font-weight:bold; color:var(--red-dark); font-size:1.2rem;">
+                <input type="text" id="creator-char-name" placeholder="Enter Name" value="${currentName.replace(/"/g, '&quot;')}" style="font-weight:bold; color:var(--red-dark); font-size:1.2rem;">
             </div>
             
             <div style="background:rgba(255,255,255,0.5); padding:15px; border-radius:4px; border:1px solid var(--gold); margin-bottom:20px; line-height:1.6;">
@@ -2954,6 +3124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div><strong>Species:</strong> ${selectedSpecies || "None"}</div>
                 <div><strong>Background:</strong> ${selectedBackground || "None"}</div>
                 <div style="margin-top:8px;">${scoreStr}</div>
+                ${spellsHtml}
             </div>
 
             <button id="create-char-btn" class="btn" style="width:100%; font-size:1.2rem; padding:15px;">Create Character</button>
@@ -3040,7 +3211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 4. Strip remaining HTML
             clean = clean.replace(/<[^>]*>/g, '');
             // 5. Decode entities (basic)
-            clean = clean.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ');
+            clean = clean.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'");
             return clean.trim();
         };
 
@@ -3178,9 +3349,58 @@ document.addEventListener('DOMContentLoaded', () => {
             (!f.subclassShortName || f.subclassShortName === selectedSubclass) && 
             f.level <= selectedLevel
         );
+
+        // Add Subclass Features
+        if (selectedSubclass) {
+            const subFeats = allSubclassFeatures.filter(f => 
+                f.className === selectedClass && 
+                f.subclassShortName === selectedSubclass && 
+                f.source === selectedSubclassSource && 
+                f.level <= selectedLevel
+            );
+            classFeats.push(...subFeats);
+        }
+
+        // Resolve copies and deduplicate
+        const uniqueClassFeats = [];
+        const featMap = new Map();
+
         classFeats.forEach(f => {
+            // Resolve _copy
+            let feature = f;
+            if (!feature.entries && feature._copy) {
+                const copyName = feature._copy.name;
+                const copySource = feature._copy.source || feature.source;
+                const original = allClassFeatures.find(o => o.name === copyName && (o.source === copySource || !feature._copy.source)) ||
+                                 allSubclassFeatures.find(o => o.name === copyName && (o.source === copySource || !feature._copy.source));
+                if (original && original.entries) {
+                    feature = { ...original, ...feature, entries: original.entries };
+                }
+            }
+
+            const key = `${feature.name.trim()}|${feature.level}`;
+            const desc = processEntries(feature.entries);
+            const hasContent = desc && cleanText(desc).length > 0;
+
+            if (!featMap.has(key)) {
+                featMap.set(key, { feature: feature, hasContent: hasContent });
+                uniqueClassFeats.push(feature);
+            } else {
+                const existing = featMap.get(key);
+                if (!existing.hasContent && hasContent) {
+                    const idx = uniqueClassFeats.indexOf(existing.feature);
+                    if (idx !== -1) uniqueClassFeats[idx] = feature;
+                    featMap.set(key, { feature: feature, hasContent: true });
+                }
+            }
+        });
+
+        uniqueClassFeats.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+
+        uniqueClassFeats.forEach(f => {
             let desc = processEntries(f.entries);
-            features.push({ title: f.name, desc: cleanText(desc), type: 'class' });
+            const title = f.level ? `Lvl ${f.level}: ${f.name}` : f.name;
+            features.push({ title: title, desc: cleanText(desc), type: 'class' });
         });
 
         // Optional Features (Invocations, Masteries, etc.)
@@ -3207,13 +3427,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 const candidates = allFeats.filter(f => f.name === featName);
                 let feat = candidates.find(f => f.source === 'XPHB') || candidates.find(f => f.source === 'PHB') || candidates[0];
                 if (feat) {
-                    let desc = processEntries(feat.entries);
+                    if (!feat.entries && feat._copy) {
+                        const copyName = feat._copy.name;
+                        const copySource = feat._copy.source || 'PHB';
+                        const original = allFeats.find(f => f.name === copyName && (f.source === copySource || !feat._copy.source));
+                        if (original && original.entries) feat = { ...original, ...feat, entries: original.entries };
+                    }
+                    let desc = processEntries(feat.entries || []);
                     features.push({ title: `Feat: ${feat.name}`, desc: cleanText(desc), type: 'feat' });
                 }
             } else {
                 const candidates = allOptionalFeatures.filter(f => f.name === name);
                 let feat = candidates.find(f => f.source === 'XPHB') || candidates.find(f => f.source === 'PHB') || candidates[0];
                 if (feat) {
+                    if (!feat.entries && feat._copy) {
+                        const copyName = feat._copy.name;
+                        const copySource = feat._copy.source || feat.source;
+                        const original = allOptionalFeatures.find(o => o.name === copyName && (o.source === copySource || !feat._copy.source));
+                        if (original && original.entries) feat = { ...original, ...feat, entries: original.entries };
+                    }
                     let desc = processEntries(feat.entries);
                     features.push({ title: feat.name, desc: cleanText(desc), type: 'class' });
                 }
@@ -3223,19 +3455,32 @@ document.addEventListener('DOMContentLoaded', () => {
         // Species Features
         const speciesCandidates = allSpecies.filter(r => r.name === selectedSpecies);
         let race = speciesCandidates.find(r => r.source === 'XPHB') || speciesCandidates[0];
+        if (race && race._copy && !race.entries) {
+            const orig = allSpecies.find(r => r.name === race._copy.name);
+            if (orig) race = { ...orig, ...race, entries: orig.entries };
+        }
         if (race && race.entries) {
             race.entries.forEach(e => {
                 if (e.name) {
                     let desc = processEntries(e.entries || e);
-                    features.push({ title: e.name, desc: cleanText(desc), type: 'race' });
+                    const title = e.level ? `Lvl ${e.level}: ${e.name}` : e.name;
+                    features.push({ title: title, desc: cleanText(desc), type: 'race' });
                 }
             });
         }
         
         // Subrace Features
         if (selectedSubrace && selectedSubrace.entries) {
-            let desc = processEntries(selectedSubrace.entries);
-            features.push({ title: `Subrace: ${selectedSubrace.name}`, desc: cleanText(desc), type: 'race' });
+            selectedSubrace.entries.forEach(e => {
+                if (e.name) {
+                    let desc = processEntries(e.entries || e);
+                    const title = e.level ? `Lvl ${e.level}: ${e.name}` : e.name;
+                    features.push({ title: title, desc: cleanText(desc), type: 'race' });
+                } else {
+                    let desc = processEntries([e]);
+                    features.push({ title: `Subrace: ${selectedSubrace.name}`, desc: cleanText(desc), type: 'race' });
+                }
+            });
         }
 
         // Lineage/Legacy Choice Features
@@ -3247,6 +3492,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const bgCandidates = allBackgrounds.filter(b => b.name === selectedBackground);
         let bg = bgCandidates.find(b => b.source === 'XPHB') || bgCandidates[0];
         if (bg) {
+            if (!bg.entries && bg._copy) {
+                const original = allBackgrounds.find(b => b.name === bg._copy.name && b.source === bg._copy.source);
+                if (original && original.entries) bg = { ...original, ...bg, entries: original.entries };
+            }
             if (bg.entries) {
                  let desc = processEntries(bg.entries);
                  features.push({ title: "Background Feature", desc: cleanText(desc), type: 'background' });
@@ -3392,7 +3641,74 @@ document.addEventListener('DOMContentLoaded', () => {
         const cantripsList = [];
         const spellsList = [];
 
-        selectedSpells.forEach(sName => {
+        const finalSpellsSet = new Set(selectedSpells);
+
+        // Gather spells from features
+        const featuresForSpells = [];
+        
+        // Optional Features
+        selectedOptionalFeatures.forEach(name => {
+            let featName = name;
+            if (name.startsWith("ASI Level ")) featName = name.substring(name.indexOf(':') + 2);
+            else if (name.startsWith("Mastery: ") || name.startsWith("Primal Knowledge")) return;
+
+            const candidates = allOptionalFeatures.filter(f => f.name === featName);
+            const featCandidates = allFeats.filter(f => f.name === featName);
+            let feat = candidates.find(f => f.source === 'XPHB') || candidates.find(f => f.source === 'PHB') || candidates[0];
+            if (!feat) feat = featCandidates.find(f => f.source === 'XPHB') || featCandidates.find(f => f.source === 'PHB') || featCandidates[0];
+            if (feat) featuresForSpells.push(feat);
+        });
+
+        // Class Features
+        if (selectedClass) {
+            featuresForSpells.push(...allClassFeatures.filter(f => f.className === selectedClass && f.source === currentClassSource && !f.subclassShortName && f.level <= selectedLevel));
+        }
+        // Subclass Features
+        if (selectedClass && selectedSubclass) {
+            featuresForSpells.push(...allSubclassFeatures.filter(f => f.className === selectedClass && f.subclassShortName === selectedSubclass && f.source === selectedSubclassSource && f.level <= selectedLevel));
+            
+            const subclassObj = allSubclasses.find(s => 
+                s.className === selectedClass && 
+                s.shortName === selectedSubclass && 
+                s.source === selectedSubclassSource
+            );
+            if (subclassObj) featuresForSpells.push(subclassObj);
+        }
+        // Species
+        if (selectedSpecies) {
+             const candidates = allSpecies.filter(r => r.name === selectedSpecies);
+             let race = candidates.find(r => r.source === 'XPHB') || candidates.find(r => r.source === 'PHB') || candidates[0];
+             if (race) featuresForSpells.push(race);
+        }
+
+        featuresForSpells.forEach(feat => {
+            if (feat.additionalSpells) {
+                feat.additionalSpells.forEach(entry => {
+                    const extract = (obj) => {
+                        if (!obj) return;
+                        Object.entries(obj).forEach(([key, val]) => {
+                            const lvl = parseInt(key);
+                            if (!isNaN(lvl) && selectedLevel < lvl) return;
+
+                            if (Array.isArray(val)) {
+                                val.forEach(v => {
+                                    if (typeof v === 'string') {
+                                        let name = v.split('#')[0].split('|')[0];
+                                        name = name.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                                        finalSpellsSet.add(name);
+                                    }
+                                });
+                            } else if (typeof val === 'object') extract(val);
+                        });
+                    };
+                    if (entry.innate) extract(entry.innate);
+                    if (entry.known) extract(entry.known);
+                    if (entry.prepared) extract(entry.prepared);
+                });
+            }
+        });
+
+        finalSpellsSet.forEach(sName => {
             const cleanName = sName.trim();
             let candidates = allSpells.filter(s => s.name === cleanName);
             if (candidates.length === 0) {
