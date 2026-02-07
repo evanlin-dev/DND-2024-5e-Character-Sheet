@@ -3254,15 +3254,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (clsObj.classTableGroups) {
                 // Iterate all groups to find spell slots (standard casting)
                 clsObj.classTableGroups.forEach(group => {
-                    if (!group.colLabels || !group.rows || !group.rows[selectedLevel - 1]) return;
+                    const rows = group.rows || group.rowsSpellProgression;
+                    if (!group.colLabels || !rows || !rows[selectedLevel - 1]) return;
                     
-                    const row = group.rows[selectedLevel - 1];
+                    const row = rows[selectedLevel - 1];
                     group.colLabels.forEach((label, idx) => {
                         // Clean label (remove tags)
-                        const cleanLabel = label.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+                        const cleanLabel = label.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "").trim();
                         
                         // Match "1st", "2nd", "3rd", etc.
-                        const slotMatch = cleanLabel.match(/^(\d+)(?:st|nd|rd|th)$/i);
+                        const slotMatch = cleanLabel.match(/(\d+)(?:st|nd|rd|th)/i);
                         
                         if (slotMatch) {
                             const lvl = parseInt(slotMatch[1]);
@@ -3286,9 +3287,10 @@ document.addEventListener('DOMContentLoaded', () => {
                      let slotsCount = 0;
                      let slotLevel = 0;
                      clsObj.classTableGroups.forEach(g => {
-                         if (!g.colLabels || !g.rows || !g.rows[selectedLevel - 1]) return;
+                         const rows = g.rows || g.rowsSpellProgression;
+                         if (!g.colLabels || !rows || !rows[selectedLevel - 1]) return;
                          
-                         const row = g.rows[selectedLevel - 1];
+                         const row = rows[selectedLevel - 1];
                          g.colLabels.forEach((label, idx) => {
                              const cleanLabel = label.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
                              
