@@ -2441,6 +2441,8 @@ window.saveCharacter = function () {
     profBonus: document.getElementById("profBonus").value,
     hitDice: document.getElementById("hitDice").value,
     activeConditions: document.getElementById("activeConditionsInput").value,
+    heroicInspiration: document.getElementById("heroicInspiration").checked,
+    defenses: document.getElementById("defenses").value,
 
     weapons: Array.from(document.querySelectorAll(".weapon-item")).map(
       (item) => ({
