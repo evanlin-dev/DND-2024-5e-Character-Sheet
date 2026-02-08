@@ -914,10 +914,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            let allItems = [];
+            const parsedData = [];
             data.forEach(file => {
+                if (file.name.toLowerCase().endsWith('.json')) {
+                    try { parsedData.push(JSON.parse(file.content)); } catch(e){}
+                }
+            });
+
+            let allItems = [];
+            parsedData.forEach(json => {
                 try {
-                    const json = JSON.parse(file.content);
                     [json.item, json.items, json.baseitem, json.baseitems, json.magicvariant, json.magicvariants, json.variant].forEach(arr => {
                         if (Array.isArray(arr)) arr.forEach(i => { if (i.name) allItems.push(i); });
                     });

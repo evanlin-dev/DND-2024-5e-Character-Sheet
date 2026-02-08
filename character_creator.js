@@ -240,6 +240,19 @@ document.addEventListener('DOMContentLoaded', () => {
                                         if (!spellClassMap[spellName]) spellClassMap[spellName] = new Set();
                                         spellClassMap[spellName].add(className);
                                     }
+
+                                    // Optimization: Pre-calculate normalized classes for faster filtering
+                                    s._normalizedClasses = new Set();
+                                    const addClass = (c) => {
+                                        if (!c) return;
+                                        const name = (typeof c === 'string' ? c : c.name).toLowerCase().trim();
+                                        s._normalizedClasses.add(name);
+                                    };
+                                    if (s.classes) {
+                                        if (Array.isArray(s.classes)) s.classes.forEach(addClass);
+                                        if (s.classes.fromClassList) s.classes.fromClassList.forEach(addClass);
+                                        if (s.classes.fromClassListVariant) s.classes.fromClassListVariant.forEach(addClass);
+                                    }
                                 });
                             }
                         }
@@ -1506,11 +1519,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             // Check Class List
-            if (s.classes) {
-                if (s.classes.fromClassList && s.classes.fromClassList.some(check)) matchesClass = true;
-                else if (s.classes.fromClassListVariant && s.classes.fromClassListVariant.some(check)) matchesClass = true;
-                else if (Array.isArray(s.classes) && s.classes.some(check)) matchesClass = true;
-            }
+            if (s._normalizedClasses && s._normalizedClasses.has(targetClass)) matchesClass = true;
 
             // Check Subclass
             if (!matchesClass && subclass && s.classes && s.classes.fromSubclass) {
@@ -2596,13 +2605,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Background Logic
-    const backgroundSelect = document.getElementById('creator-background');
-    backgroundSelect.addEventListener('change', () => {
-        selectedBackground = backgroundSelect.value;
-        renderBackgroundInfo();
-    });
+    let backgroundSelect = document.getElementById('creator-background');
+    if (backgroundSelect) {
+        backgroundSelect.addEventListener('change', () => {
+            selectedBackground = backgroundSelect.value;
+            renderBackgroundInfo();
+        });
+    }
 
     function renderBackgroundOptions() {
+        // Ensure UI exists and is styled correctly (Fix for mobile visibility)
+        if (!backgroundSelect) {
+            const step3 = document.getElementById('step-3-section');
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <h3 class="section-title" style="margin-top:0;">Select Background</h3>
+                <div class="field" style="margin-bottom: 20px;">
+                    <span class="field-label">Background</span>
+                    <select id="creator-background" class="styled-select" style="width: 100%;">
+                        <option value="" disabled selected>Select Background</option>
+                    </select>
+                </div>
+                <div id="creator-background-info" style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 4px; border: 1px dashed var(--gold);">
+                    <em style="color:var(--ink-light);">Select a background to view details...</em>
+                </div>
+            `;
+            step3.insertBefore(container, step3.firstChild);
+            backgroundSelect = document.getElementById('creator-background');
+            backgroundSelect.addEventListener('change', () => {
+                selectedBackground = backgroundSelect.value;
+                renderBackgroundInfo();
+            });
+        } else {
+            backgroundSelect.classList.add('styled-select');
+            if (!backgroundSelect.closest('.field')) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'field';
+                wrapper.style.marginBottom = '20px';
+                backgroundSelect.parentNode.insertBefore(wrapper, backgroundSelect);
+                const label = document.createElement('span');
+                label.className = 'field-label';
+                label.textContent = 'Background';
+                wrapper.appendChild(label);
+                wrapper.appendChild(backgroundSelect);
+            }
+        }
+
         backgroundSelect.innerHTML = '<option value="" disabled selected>Select Background</option>';
         
         // Deduplicate preferring XPHB

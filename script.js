@@ -589,12 +589,10 @@
        });
    }
 
-   function loadWeaponsFromData(data) {
-       if (!data) return;
-       data.forEach(file => {
-           if (!file.name.toLowerCase().endsWith('.json')) return;
+   function loadWeaponsFromData(parsedData) {
+       if (!parsedData) return;
+       parsedData.forEach(json => {
            try {
-               const json = JSON.parse(file.content);
                if (json.baseitem && Array.isArray(json.baseitem)) {
                    json.baseitem.forEach(item => {
                        if (item.weaponCategory) {
@@ -644,13 +642,11 @@
        });
    }
 
-   function loadActionsFromData(data) {
-       if (!data) return;
+   function loadActionsFromData(parsedData) {
+       if (!parsedData) return;
        let actions = [];
-       data.forEach(file => {
-           if (!file.name.toLowerCase().endsWith('.json')) return;
+       parsedData.forEach(json => {
            try {
-               const json = JSON.parse(file.content);
                if (json.action && Array.isArray(json.action)) {
                    actions.push(...json.action);
                }
@@ -680,8 +676,14 @@
            const req = store.get('currentData');
            req.onsuccess = () => {
                if (req.result) {
-                   loadWeaponsFromData(req.result);
-                   loadActionsFromData(req.result);
+                   const parsedData = [];
+                   req.result.forEach(file => {
+                       if (file.name.toLowerCase().endsWith('.json')) {
+                           try { parsedData.push(JSON.parse(file.content)); } catch(e){}
+                       }
+                   });
+                   loadWeaponsFromData(parsedData);
+                   loadActionsFromData(parsedData);
                }
                const btnItems = document.getElementById('btn-search-items-zip');
                const btnCantrips = document.getElementById('btn-search-cantrips-zip');
@@ -784,11 +786,16 @@
                return;
            }
 
-           const results = [];
+           const parsedData = [];
            data.forEach(file => {
-               if (!file.name.toLowerCase().endsWith('.json')) return;
+               if (file.name.toLowerCase().endsWith('.json')) {
+                   try { parsedData.push(JSON.parse(file.content)); } catch(e){}
+               }
+           });
+
+           const results = [];
+           parsedData.forEach(json => {
                try { 
-                   const json = JSON.parse(file.content);
                    // Strict filtering: Only look in known item arrays to avoid monsters/spells/adventures
                    const arraysToCheck = [json.item, json.items, json.baseitem, json.baseitems, json.magicvariant, json.magicvariants, json.variant];
                    arraysToCheck.forEach(arr => {
@@ -984,6 +991,13 @@
                return;
            }
 
+           const parsedData = [];
+           data.forEach(file => {
+               if (file.name.toLowerCase().endsWith('.json')) {
+                   try { parsedData.push(JSON.parse(file.content)); } catch(e){}
+               }
+           });
+
            // Pass 1: Build Spell Class Map from Book Data
            const spellClassMap = {};
            
@@ -1014,21 +1028,15 @@
                });
            };
 
-           data.forEach(file => {
-               if (!file.name.toLowerCase().endsWith('.json')) return;
-               try {
-                   const json = JSON.parse(file.content);
+           parsedData.forEach(json => {
                    if (json.data && Array.isArray(json.data)) {
                        processBookEntries(json.data);
                    }
-               } catch (e) {}
            });
 
            const results = [];
-           data.forEach(file => {
-               if (!file.name.toLowerCase().endsWith('.json')) return;
+           parsedData.forEach(json => {
                try { 
-                   const json = JSON.parse(file.content);
                    // console.log("Spell Data:", json);
                    let arraysToCheck = [json.spell, json.spells, json.data];
                    if (Array.isArray(json)) arraysToCheck.push(json);
