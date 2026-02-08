@@ -6,7 +6,8 @@ body.dm-screen-page .character-sheet {
 .character-sheet-button {
   position: absolute;
   top: 20px;
-  left: 20px;
+  right: 20px;
+  left: auto;
   background: var(--red);
   color: white;
   padding: 10px 15px;

@@ -51,7 +51,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
    3. LAYOUT UTILITIES
    ========================================= */
 .character-sheet {
-  max-width: 900px;
+  max-width: 98%;
   margin: 0 auto;
   background: var(--parchment);
   border-radius: 8px;
@@ -111,6 +111,93 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
   background-position: right 10px center;
   background-size: 16px;
   padding-right: 30px;
+}
+
+/* =========================================
+   SIDEBAR NAVIGATION & WIDE LAYOUT
+   ========================================= */
+.quick-nav {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: auto;
+  max-width: 280px;
+  height: auto;
+  max-height: 70vh;
+  background: var(--parchment);
+  border: 2px solid var(--gold);
+  padding: 10px;
+  overflow-y: auto;
+  z-index: 3002;
+  transform: scale(0);
+  transform-origin: bottom right;
+  transition: transform 0.2s ease;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.quick-nav.visible {
+  transform: scale(1);
+}
+.quick-nav-link {
+  display: block;
+  padding: 8px 0;
+  color: var(--ink);
+  text-decoration: none;
+  font-family: "Cinzel", serif;
+  font-size: 0.9rem;
+  border-bottom: 1px dashed var(--gold-dark);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.quick-nav-link:hover {
+  color: var(--red);
+  padding-left: 5px;
+}
+
+/* Custom Nav Buttons from User Input */
+.nav-btn-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  border: 1px solid var(--gold);
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: "Cinzel", serif;
+  font-size: 0.9rem;
+  color: var(--ink);
+  transition: background 0.2s;
+}
+.nav-btn-custom:hover {
+  background: var(--parchment-dark);
+}
+
+@media (min-width: 1200px) {
+  .character-sheet:not(.creator-mode):not(.dm-mode) {
+    display: block;
+    column-count: 2;
+    column-gap: 40px;
+    padding-left: 20px;
+  }
+  
+  /* Structural Wrappers */
+  .sheet-section {
+    break-inside: avoid;
+    margin-bottom: 24px;
+  }
+  
+  /* Full Width Elements */
+  .header, .sheet-section.full-width, .sheet-actions {
+    column-span: all;
+  }
+  
+  .quick-nav, .grid-menu-btn {
+    display: none !important;
+  }
 }
 
 /* =========================================
@@ -209,6 +296,8 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
 .spell-row { background: white; border: 1px solid var(--gold); border-radius: 4px; padding: 6px; margin-bottom: 8px; }
 .spell-input { border-bottom: 1px solid transparent; font-size: 0.95rem; }
 .spell-input:focus { border-bottom: 1px solid var(--red); }
+.spell-col-prep, .spell-col-ritual, .spell-col-conc, .spell-col-mat { display: flex; align-items: center; justify-content: center; }
+.mobile-label { display: none; }
 
 .slot-level-container { background: white; border: 1px solid var(--gold); border-radius: 6px; padding: 10px; margin-bottom: 12px; }
 .slot-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--gold-dark); padding-bottom: 4px; }
@@ -697,19 +786,40 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
   z-index: 3001;
   background: var(--red);
   color: white;
-  border: none;
-  border-radius: 4px;
-  width: 40px;
-  height: 40px;
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
   font-size: 1.5rem;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
-.hamburger-btn:hover { background: var(--red-dark); }
+.hamburger-btn:hover { background: var(--red-dark); transform: scale(1.05); }
+
+.grid-menu-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 3001;
+  background: var(--red);
+  color: white;
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.grid-menu-btn:hover { background: var(--red-dark); transform: scale(1.05); }
 
 .sidebar-nav {
   position: fixed;
@@ -812,7 +922,7 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
       "name name name lvl"
       "time time range range"
       "prep ritual conc mat"
-      "info . . del";
+      "info . drag del";
     gap: 10px;
     padding: 12px;
     align-items: center;
@@ -822,12 +932,14 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
   .spell-row .spell-lvl { grid-area: lvl; text-align: right; }
   .spell-row .spell-time { grid-area: time; font-size: 0.9rem; }
   .spell-row .spell-range { grid-area: range; font-size: 0.9rem; }
-  .spell-row .spell-prep { grid-area: prep; justify-self: center; }
-  .spell-row .spell-ritual { grid-area: ritual; justify-self: center; }
-  .spell-row .spell-conc { grid-area: conc; justify-self: center; }
-  .spell-row .spell-mat { grid-area: mat; justify-self: center; }
+  .spell-row .spell-col-prep { grid-area: prep; justify-self: center; flex-direction: column; }
+  .spell-row .spell-col-ritual { grid-area: ritual; justify-self: center; flex-direction: column; }
+  .spell-row .spell-col-conc { grid-area: conc; justify-self: center; flex-direction: column; }
+  .spell-row .spell-col-mat { grid-area: mat; justify-self: center; flex-direction: column; }
   .spell-row .skill-info-btn { grid-area: info; }
   .spell-row .delete-feature-btn { grid-area: del; justify-self: end; }
+  .spell-row .drag-handle { grid-area: drag; justify-self: center; }
+  .mobile-label { display: block; font-size: 0.7rem; color: var(--ink-light); margin-bottom: 2px; font-weight: bold; }
 
   /* DM Screen Mobile */
   .dice-rolls-buckets { grid-template-columns: repeat(4, 1fr) !important; }
@@ -859,4 +971,21 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
         "qty weight equip"
         "note delete drag";
   }
+}
+
+@media (min-width: 1200px) {
+  /* Compact Stat Block for Single Row on Wide Screens */
+  .stat-block {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+  }
+  .stat-card .stat { padding: 8px; }
+  .stat-card .stat-value { font-size: 2rem; }
+  .stat-card .stat-name { font-size: 0.75rem; }
+  .stat-card .skill-item { padding: 4px 6px; gap: 6px; }
+  .stat-card .skill-name { font-size: 0.8rem; line-height: 1.1; }
+  .stat-card .skill-checkbox { width: 16px; height: 16px; }
+  .stat-card .checkmark { font-size: 0.8rem; }
+  .stat-card .skill-mod { font-size: 0.85rem; min-width: 25px; }
+  .stat-card .skill-info-btn { width: 14px; height: 14px; font-size: 0.65rem; }
 }
