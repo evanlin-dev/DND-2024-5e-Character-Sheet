@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedSpecies = null;
     let allMasteryProperties = {};
     let allItems = [];
+    let lastAvailableFeatNames = null;
 
     // Helper for Equipment Selection UI
     window.updateEquipSelection = function(radio) {
@@ -491,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
     levelSelect.addEventListener('change', () => {
         selectedLevel = parseInt(levelSelect.value);
         updateUIState();
-        renderClassFeatures();
+        renderClassFeatures(true); // Suppress toast on level change
     });
 
     function updateSubclassOptions(className) {
@@ -530,6 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedSubclass = s.shortName;
                 selectedSubclassSource = s.source;
                 renderClassFeatures();
+                // Re-render features when subclass changes to update available options
             };
             subclassList.appendChild(div);
         });
@@ -578,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Future steps will go here
     });
 
-    function renderClassFeatures() {
+    function renderClassFeatures(suppressToast = false) {
         if (!selectedClass) return;
         const className = selectedClass;
         const container = document.getElementById('creator-class-features');
@@ -855,9 +857,32 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         let featDesc = processEntries(feat.entries);
                         featDesc = featDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+                        
+                        let prereqDisplay = "";
+                        if (feat.prerequisite) {
+                            const reqs = feat.prerequisite.map(req => {
+                                const parts = [];
+                                if (req.level) {
+                                    let lvl = req.level;
+                                    if (typeof req.level === 'object') lvl = req.level.level;
+                                    parts.push(`Level ${lvl}`);
+                                }
+                                if (req.race) {
+                                    const races = req.race.map(r => r.name + (r.subrace ? ` (${r.subrace})` : '')).join('/');
+                                    parts.push(`Race: ${races}`);
+                                }
+                                if (req.ability) {
+                                    const abs = req.ability.map(a => Object.entries(a).map(([k,v]) => `${k.toUpperCase()} ${v}`).join('/')).join(' or ');
+                                    parts.push(abs);
+                                }
+                                return parts.join(', ');
+                            }).filter(s => s).join('; ');
+                            if (reqs) prereqDisplay = `<div style="font-size:0.8rem; color:var(--red); font-style:italic; margin-bottom:6px;">Prerequisite: ${reqs}</div>`;
+                        }
 
                         featDiv.innerHTML = `
-                            <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">${parentFeat ? 'Version: ' : 'Feat: '}${selectedFeatName.includes('Magic Initiate') ? selectedFeatName : feat.name}</div>
+                            <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">${parentFeat ? 'Version: ' : 'Feat: '}${selectedFeatName.includes('Magic Initiate') ? selectedFeatName : feat.name} <span style="color:var(--ink-light); font-weight:normal; font-size:0.8rem;">[${feat.source}]</span></div>
+                            ${prereqDisplay}
                             <div style="font-size:0.85rem; color:var(--ink); line-height:1.4;">${featDesc}</div>
                         `;
                         targetParent.appendChild(featDiv);
@@ -1058,6 +1083,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             container.appendChild(div);
         });
+        if (!suppressToast) checkNewFeats();
         renderGrantedSpells();
     }
 
@@ -2038,6 +2064,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         container.innerHTML = `<div style="font-weight:bold; margin-bottom:8px; border-bottom:1px solid var(--gold-dark);">Select a Feat (Level ${charLevel}):</div>`;
 
+        const currentStats = getFinalAbilityScores();
+
         // Deduplicate Feats
         const candidates = new Map();
         allFeats.forEach(feat => {
@@ -2057,10 +2085,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const available = uniqueFeats.filter(feat => {
             if (feat.prerequisite) {
                 return feat.prerequisite.every(req => {
+                    // Level Check
                     if (req.level) {
                         let reqLvl = typeof req.level === 'object' ? req.level.level : req.level;
-                        return charLevel >= reqLvl;
+                        if (charLevel < reqLvl) return false;
                     }
+
+                    // Race/Species Check
+                    if (req.race) {
+                        if (!selectedSpecies) return false; // No species selected yet
+                        // req.race is array of allowed races (OR logic)
+                        const match = req.race.some(r => {
+                            if (r.name && selectedSpecies.toLowerCase() !== r.name.toLowerCase()) return false;
+                            if (r.subrace && selectedSubrace && selectedSubrace.name.toLowerCase() !== r.subrace.toLowerCase()) return false;
+                            return true;
+                        });
+                        if (!match) return false;
+                    }
+
+                    // Ability Score Check
+                    if (req.ability) {
+                        // req.ability is array of options (OR logic) e.g. [{str: 13}, {dex: 13}]
+                        const match = req.ability.some(opt => {
+                            return Object.entries(opt).every(([ab, val]) => {
+                                const map = { 'str': 'Strength', 'dex': 'Dexterity', 'con': 'Constitution', 'int': 'Intelligence', 'wis': 'Wisdom', 'cha': 'Charisma' };
+                                const score = currentStats[map[ab]] || 10;
+                                return score >= val;
+                            });
+                        });
+                        if (!match) return false;
+                    }
+
                     return true;
                 });
             }
@@ -2102,7 +2157,34 @@ document.addEventListener('DOMContentLoaded', () => {
         available.forEach(feat => {
             const option = document.createElement('option');
             option.value = feat.name;
-            option.textContent = feat.name;
+            
+            // Format Label: Name [Source] | Req: ...
+            let label = feat.name;
+            if (feat.source) label += ` [${feat.source}]`;
+            
+            if (feat.prerequisite) {
+                const reqs = feat.prerequisite.map(req => {
+                    const parts = [];
+                    if (req.level) {
+                        let lvl = req.level;
+                        if (typeof req.level === 'object') lvl = req.level.level;
+                        parts.push(`Lvl ${lvl}`);
+                    }
+                    if (req.race) {
+                        const races = req.race.map(r => r.name + (r.subrace ? ` (${r.subrace})` : '')).join('/');
+                        parts.push(`Race: ${races}`);
+                    }
+                    if (req.ability) {
+                        const abs = req.ability.map(a => Object.entries(a).map(([k,v]) => `${k.toUpperCase()} ${v}`).join('/')).join(' or ');
+                        parts.push(abs);
+                    }
+                    return parts.join(', ');
+                }).filter(s => s).join('; ');
+                
+                if (reqs) label += ` | Req: ${reqs}`;
+            }
+            
+            option.textContent = label;
             if (parentFeatName === feat.name) option.selected = true;
             select.appendChild(option);
         });
@@ -2398,6 +2480,146 @@ document.addEventListener('DOMContentLoaded', () => {
 
         container.appendChild(select);
         parentElement.appendChild(container);
+    }
+
+    function getAvailableFeats() {
+        if (!allFeats || allFeats.length === 0) return [];
+        const currentStats = getFinalAbilityScores();
+        
+        // Deduplicate Feats logic (same as renderFeatSelection)
+        const candidates = new Map();
+        allFeats.forEach(feat => {
+            if (!candidates.has(feat.name)) candidates.set(feat.name, []);
+            candidates.get(feat.name).push(feat);
+        });
+
+        const uniqueFeats = [];
+        candidates.forEach((opts) => {
+            let selected = opts.find(o => o.source === 'XPHB');
+            if (!selected) selected = opts.find(o => o.source === 'PHB');
+            if (!selected) selected = opts[0];
+            uniqueFeats.push(selected);
+        });
+
+        const available = uniqueFeats.filter(feat => {
+            if (feat.prerequisite) {
+                return feat.prerequisite.every(req => {
+                    if (req.level) {
+                        let reqLvl = typeof req.level === 'object' ? req.level.level : req.level;
+                        if (selectedLevel < reqLvl) return false;
+                    }
+                    if (req.race) {
+                        if (!selectedSpecies) return false;
+                        const match = req.race.some(r => {
+                            if (r.name && selectedSpecies.toLowerCase() !== r.name.toLowerCase()) return false;
+                            if (r.subrace && selectedSubrace && selectedSubrace.name.toLowerCase() !== r.subrace.toLowerCase()) return false;
+                            return true;
+                        });
+                        if (!match) return false;
+                    }
+                    if (req.ability) {
+                        const match = req.ability.some(opt => {
+                            return Object.entries(opt).every(([ab, val]) => {
+                                const map = { 'str': 'Strength', 'dex': 'Dexterity', 'con': 'Constitution', 'int': 'Intelligence', 'wis': 'Wisdom', 'cha': 'Charisma' };
+                                const score = currentStats[map[ab]] || 10;
+                                return score >= val;
+                            });
+                        });
+                        if (!match) return false;
+                    }
+                    return true;
+                });
+            }
+            return true;
+        });
+        return available;
+    }
+
+    function checkNewFeats() {
+        const currentFeats = getAvailableFeats();
+        const currentNames = new Set(currentFeats.map(f => f.name));
+
+        if (lastAvailableFeatNames !== null) {
+            const newFeats = currentFeats.filter(f => !lastAvailableFeatNames.has(f.name));
+            if (newFeats.length > 0) {
+                showToast("New feats available!", "Show Feats", () => openNewFeatsModal(newFeats));
+            }
+        }
+        lastAvailableFeatNames = currentNames;
+    }
+
+    function showToast(msg, actionLabel = null, actionCallback = null) {
+        let toast = document.getElementById('feat-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'feat-toast';
+            toast.className = 'toast-notification';
+            document.body.appendChild(toast);
+        }
+        
+        let html = `<span id="feat-toast-msg">${msg}</span>`;
+        if (actionLabel) {
+            html += `<button id="feat-toast-action" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; margin-left: 10px; background: var(--parchment); color: var(--ink); border: 1px solid var(--gold);">${actionLabel}</button>`;
+        }
+        html += `<button class="toast-close" onclick="this.parentElement.classList.remove('show')">&times;</button>`;
+        
+        toast.innerHTML = html;
+        
+        if (actionLabel && actionCallback) {
+            document.getElementById('feat-toast-action').onclick = () => {
+                actionCallback();
+                toast.classList.remove('show');
+            };
+        }
+
+        toast.classList.add('show');
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => { if(toast.classList.contains('show')) toast.classList.remove('show'); }, 5000);
+    }
+
+    function openNewFeatsModal(feats) {
+        let modal = document.getElementById('newFeatsModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'newFeatsModal';
+            modal.className = 'info-modal-overlay';
+            modal.innerHTML = `
+                <div class="info-modal-content" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+                    <button class="close-modal-btn" onclick="document.getElementById('newFeatsModal').style.display='none'">&times;</button>
+                    <h3 class="info-modal-title" style="text-align: center">Available Feats</h3>
+                    <div id="newFeatsList" style="overflow-y: auto; flex: 1;"></div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        const list = document.getElementById('newFeatsList');
+        list.innerHTML = '';
+        
+        feats.sort((a,b) => a.name.localeCompare(b.name));
+        
+        if (feats.length === 0) {
+            list.innerHTML = '<div style="padding:10px; text-align:center;">No feats available.</div>';
+        } else {
+            feats.forEach(f => {
+                const div = document.createElement('div');
+                div.style.borderBottom = '1px solid var(--gold)';
+                div.style.padding = '10px';
+                
+                let desc = processEntries(f.entries);
+                desc = desc.replace(/{@\w+\s*([^}]+)?}/g, (m, c) => c ? c.split('|')[0] : "");
+                
+                div.innerHTML = `
+                    <div style="font-weight:bold; color:var(--red-dark); cursor:pointer; display:flex; justify-content:space-between;" onclick="const d = this.nextElementSibling; d.style.display = d.style.display === 'none' ? 'block' : 'none';">
+                        <span>${f.name}</span> <span style="font-size:0.8rem; color:var(--ink-light);">▼</span>
+                    </div>
+                    <div style="display:none; margin-top:5px; font-size:0.9rem; line-height:1.4; color:var(--ink);">${desc}</div>
+                `;
+                list.appendChild(div);
+            });
+        }
+        
+        modal.style.display = 'flex';
     }
 
     function renderGrantedSpells() {
@@ -2880,6 +3102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
 
                     selects.forEach(s => s.addEventListener('change', updateOptions));
+                    selects.forEach(s => s.addEventListener('change', () => renderClassFeatures())); // Re-check feats
                     updateOptions();
                 };
 
@@ -3178,6 +3401,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedSpecies = r.name;
                 document.getElementById('creator-species-btn').textContent = r.name;
                 renderSpeciesInfo();
+                renderClassFeatures(); // Re-check feat prerequisites
                 modal.style.display = 'none';
             };
             list.appendChild(div);
@@ -3237,6 +3461,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         let sDesc = processEntries(selectedSubrace.entries);
                         sDesc = sDesc.replace(/{@\w+\s*([^}]+)?}/g, (m, c) => c ? c.split('|')[0] : "");
                         subDescDiv.innerHTML = `<strong>${sName}:</strong> ${sDesc}`;
+                        renderClassFeatures(); // Re-check feat prerequisites (e.g. Drow High Magic)
                     } else {
                         subDescDiv.innerHTML = "";
                     }
@@ -3414,6 +3639,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (opt.value === current) opt.disabled = false;
                         else opt.disabled = used.includes(opt.value);
                     });
+                    renderClassFeatures(); // Re-check feat prerequisites
                 });
             });
         });
@@ -3481,6 +3707,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnInc.onclick = () => { scores[ab]++; update(); };
 
                 pbContainer.appendChild(row);
+                renderClassFeatures(); // Re-check feat prerequisites
             });
         };
         update();
@@ -3547,6 +3774,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (optIndex === currentIndex) opt.disabled = false;
                             else opt.disabled = usedIndices.includes(optIndex);
                         });
+                        renderClassFeatures(); // Re-check feat prerequisites
                     });
                 });
             });
@@ -3720,21 +3948,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const scores = { Strength: 10, Dexterity: 10, Constitution: 10, Intelligence: 10, Wisdom: 10, Charisma: 10 };
         
         // 1. Base Scores
-        if (document.getElementById('btn-method-standard').classList.contains('btn')) {
-            document.querySelectorAll('.sa-select').forEach(sel => {
-                if (sel.value) scores[sel.dataset.ability] = parseInt(sel.value);
-            });
-        } else if (document.getElementById('btn-method-pointbuy').classList.contains('btn')) {
-            const rows = document.querySelectorAll('#pb-container > div');
-            rows.forEach(row => {
-                const ability = row.children[0].textContent;
-                const scoreSpan = row.children[1].children[1];
-                if (ability && scoreSpan) scores[ability] = parseInt(scoreSpan.textContent);
-            });
-        } else if (document.getElementById('btn-method-random').classList.contains('btn')) {
-            document.querySelectorAll('.random-select').forEach(sel => {
-                if (sel.value) scores[sel.dataset.ability] = parseInt(sel.value);
-            });
+        const btnStandard = document.getElementById('btn-method-standard');
+        if (btnStandard) {
+            if (btnStandard.classList.contains('btn')) {
+                document.querySelectorAll('.sa-select').forEach(sel => {
+                    if (sel.value) scores[sel.dataset.ability] = parseInt(sel.value);
+                });
+            } else if (document.getElementById('btn-method-pointbuy').classList.contains('btn')) {
+                const rows = document.querySelectorAll('#pb-container > div');
+                rows.forEach(row => {
+                    const ability = row.children[0].textContent;
+                    const scoreSpan = row.children[1].children[1];
+                    if (ability && scoreSpan) scores[ability] = parseInt(scoreSpan.textContent);
+                });
+            } else if (document.getElementById('btn-method-random').classList.contains('btn')) {
+                document.querySelectorAll('.random-select').forEach(sel => {
+                    if (sel.value) scores[sel.dataset.ability] = parseInt(sel.value);
+                });
+            }
         }
 
         // 2. Background ASI
