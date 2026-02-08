@@ -3702,6 +3702,31 @@ document.addEventListener('DOMContentLoaded', () => {
             return clean.trim();
         };
 
+        const actions = [];
+        const bonusActions = [];
+        const reactions = [];
+
+        const getActionType = (feature) => {
+            if (!feature || !feature.entries || !feature.entries.length) return "trait";
+            if (typeof feature.entries[0] !== "string") return "trait";
+
+            const text = cleanText(feature.entries[0]);
+
+            if (/\b(?:as a|can use (?:a|their)) bonus action\b/i.test(text)) return "bonus";
+            if (/\b(?:as a|can use (?:a|their)) reaction\b/i.test(text)) return "reaction";
+            if (/\b(?:(?:as|use) (an|their) action|takes the [A-Z][^.!?]+ action\b)\b/i.test(text)) return "action";
+            
+            return "trait";
+        };
+
+        const addToActionLists = (feature, title, desc) => {
+            const type = getActionType(feature);
+            const item = { title, desc };
+            if (type === "action") actions.push(item);
+            else if (type === "bonus") bonusActions.push(item);
+            else if (type === "reaction") reactions.push(item);
+        };
+
         // Initialize Proficiencies & Details
         const skillProficiency = {};
         let toolProfs = [];
@@ -3886,8 +3911,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         uniqueClassFeats.forEach(f => {
             let desc = processEntries(f.entries);
+            const cleanedDesc = cleanText(desc);
             const title = f.level ? `Lvl ${f.level}: ${f.name}` : f.name;
-            features.push({ title: title, desc: cleanText(desc), type: 'class' });
+            features.push({ title: title, desc: cleanedDesc, type: 'class' });
+            addToActionLists(f, title, cleanedDesc);
         });
 
         // Optional Features (Invocations, Masteries, etc.)
@@ -3924,7 +3951,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (feat.entries) desc = processEntries(feat.entries);
                     else if (feat.description) desc = feat.description;
                     else if (feat.desc) desc = Array.isArray(feat.desc) ? processEntries(feat.desc) : feat.desc;
-                    features.push({ title: `Feat: ${feat.name}`, desc: cleanText(desc), type: 'feat' });
+                    const cleanedDesc = cleanText(desc);
+                    features.push({ title: `Feat: ${feat.name}`, desc: cleanedDesc, type: 'feat' });
+                    addToActionLists(feat, `Feat: ${feat.name}`, cleanedDesc);
                 }
             } else {
                 const candidates = allOptionalFeatures.filter(f => f.name === name);
@@ -3941,7 +3970,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     else if (feat.description) desc = feat.description;
                     else if (feat.desc) desc = Array.isArray(feat.desc) ? processEntries(feat.desc) : feat.desc;
                     const title = feat.level ? `Lvl ${feat.level}: ${feat.name}` : feat.name;
-                    features.push({ title: title, desc: cleanText(desc), type: 'class' });
+                    const cleanedDesc = cleanText(desc);
+                    features.push({ title: title, desc: cleanedDesc, type: 'class' });
+                    addToActionLists(feat, title, cleanedDesc);
                 }
             }
         });
@@ -3957,8 +3988,10 @@ document.addEventListener('DOMContentLoaded', () => {
             race.entries.forEach(e => {
                 if (e.name) {
                     let desc = processEntries(e.entries || e);
+                    const cleanedDesc = cleanText(desc);
                     const title = e.level ? `Lvl ${e.level}: ${e.name}` : e.name;
-                    features.push({ title: title, desc: cleanText(desc), type: 'race' });
+                    features.push({ title: title, desc: cleanedDesc, type: 'race' });
+                    addToActionLists(e, title, cleanedDesc);
                 }
             });
         }
@@ -3968,18 +4001,24 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedSubrace.entries.forEach(e => {
                 if (e.name) {
                     let desc = processEntries(e.entries || e);
+                    const cleanedDesc = cleanText(desc);
                     const title = e.level ? `Lvl ${e.level}: ${e.name}` : e.name;
-                    features.push({ title: title, desc: cleanText(desc), type: 'race' });
+                    features.push({ title: title, desc: cleanedDesc, type: 'race' });
+                    addToActionLists(e, title, cleanedDesc);
                 } else {
                     let desc = processEntries([e]);
-                    features.push({ title: `Subrace: ${selectedSubrace.name}`, desc: cleanText(desc), type: 'race' });
+                    const cleanedDesc = cleanText(desc);
+                    features.push({ title: `Subrace: ${selectedSubrace.name}`, desc: cleanedDesc, type: 'race' });
+                    addToActionLists({ entries: [desc] }, `Subrace: ${selectedSubrace.name}`, cleanedDesc);
                 }
             });
         }
 
         // Lineage/Legacy Choice Features
         if (selectedSpeciesOptionFeature) {
-            features.push({ title: selectedSpeciesOptionFeature.title, desc: cleanText(selectedSpeciesOptionFeature.desc), type: 'race' });
+            const cleanedDesc = cleanText(selectedSpeciesOptionFeature.desc);
+            features.push({ title: selectedSpeciesOptionFeature.title, desc: cleanedDesc, type: 'race' });
+            addToActionLists({ entries: [selectedSpeciesOptionFeature.desc] }, selectedSpeciesOptionFeature.title, cleanedDesc);
         }
 
         // Background Features
@@ -3992,7 +4031,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (bg.entries) {
                  let desc = processEntries(bg.entries);
-                 features.push({ title: "Background Feature", desc: cleanText(desc), type: 'background' });
+                 const cleanedDesc = cleanText(desc);
+                 features.push({ title: "Background Feature", desc: cleanedDesc, type: 'background' });
+                 addToActionLists(bg, "Background Feature", cleanedDesc);
             }
             // Background Skills
             if (bg.skillProficiencies) {
@@ -4287,6 +4328,9 @@ document.addEventListener('DOMContentLoaded', () => {
             raceFeatures: features.filter(f => f.type === 'race'),
             backgroundFeatures: features.filter(f => f.type === 'background'),
             feats: features.filter(f => f.type === 'feat'),
+            actions: actions,
+            bonusActions: bonusActions,
+            reactions: reactions,
             
             skillProficiency,
             // New Fields
