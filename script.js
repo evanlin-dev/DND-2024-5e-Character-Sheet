@@ -101,6 +101,24 @@
      "Unconscious": "Incapacitated. Drop held items. Prone. Auto-fail Str/Dex saves. Attacks against you have Advantage and are crits if within 5ft.",
    };
    
+   const conditionIcons = {
+     "Blinded": "🙈",
+     "Charmed": "❤️",
+     "Deafened": "🙉",
+     "Exhaustion": "😫",
+     "Frightened": "😱",
+     "Grappled": "🤼",
+     "Incapacitated": "🤕",
+     "Invisible": "👻",
+     "Paralyzed": "⚡",
+     "Petrified": "🗿",
+     "Poisoned": "🤢",
+     "Prone": "🛌",
+     "Restrained": "⛓️",
+     "Stunned": "💫",
+     "Unconscious": "💤"
+   };
+
    // State Variables
    const skillProficiency = {};
    const saveProficiency = {};
@@ -1815,6 +1833,65 @@
    window.resetSheet = function () {
      if (confirm("Clear all data? This cannot be undone.")) { localStorage.removeItem("dndCharacter"); location.reload(); }
    };
+
+   window.createSidebarMenu = function() {
+       const hamburger = document.createElement('button');
+       hamburger.className = 'hamburger-btn';
+       hamburger.innerHTML = '☰';
+       hamburger.title = "Menu";
+       hamburger.onclick = window.toggleSidebar;
+       document.body.appendChild(hamburger);
+
+       const sidebar = document.createElement('div');
+       sidebar.id = 'main-sidebar';
+       sidebar.className = 'sidebar-nav';
+       sidebar.innerHTML = `
+           <div class="sidebar-header">
+               <h3>Menu</h3>
+               <button class="close-sidebar-btn" onclick="window.toggleSidebar()">&times;</button>
+           </div>
+           <div class="sidebar-content" id="sidebar-content"></div>
+       `;
+       document.body.appendChild(sidebar);
+
+       const overlay = document.createElement('div');
+       overlay.id = 'sidebar-overlay';
+       overlay.className = 'sidebar-overlay';
+       overlay.onclick = window.toggleSidebar;
+       document.body.appendChild(overlay);
+
+       const actionsDiv = document.querySelector(".sheet-actions");
+       const sidebarContent = document.getElementById('sidebar-content');
+       
+       // Add Characters Button
+       const charBtn = document.createElement("button");
+       charBtn.className = "sidebar-btn";
+       charBtn.innerText = "Characters";
+       charBtn.onclick = () => { window.openCharacterManager(); window.toggleSidebar(); };
+       sidebarContent.appendChild(charBtn);
+
+       if (actionsDiv) {
+           Array.from(actionsDiv.children).forEach(child => {
+               // Move buttons/labels to sidebar
+               child.classList.add('sidebar-btn');
+               child.classList.remove('btn', 'btn-secondary', 'btn-danger');
+               sidebarContent.appendChild(child);
+           });
+           actionsDiv.style.display = 'none';
+       }
+   };
+
+   window.toggleSidebar = function() {
+       const sidebar = document.getElementById('main-sidebar');
+       const overlay = document.getElementById('sidebar-overlay');
+       if (sidebar.classList.contains('open')) {
+           sidebar.classList.remove('open');
+           overlay.classList.remove('open');
+       } else {
+           sidebar.classList.add('open');
+           overlay.classList.add('open');
+       }
+   };
    
    /* =========================================
       6. INITIALIZATION
@@ -1831,17 +1908,8 @@
          document.body.appendChild(input);
      }
 
-     // Inject Characters Button
-     const actionsDiv = document.querySelector(".sheet-actions");
-     if (actionsDiv) {
-         const btn = document.createElement("button");
-         btn.className = "btn btn-secondary";
-         btn.innerText = "Characters";
-         btn.style.marginRight = "10px";
-         btn.onclick = window.openCharacterManager;
-         // Insert as first item
-         actionsDiv.insertBefore(btn, actionsDiv.firstChild);
-     }
+     // Initialize Sidebar Menu
+     createSidebarMenu();
 
      window.isInitializing = true;
      

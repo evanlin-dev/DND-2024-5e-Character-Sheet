@@ -58,12 +58,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   box-shadow: 0 8px 32px var(--shadow-heavy), inset 0 0 200px rgba(212, 165, 116, 0.1);
   padding: 24px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 .character-sheet::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
   background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(42, 24, 16, 0.02) 2px, rgba(42, 24, 16, 0.02) 4px);
   pointer-events: none; opacity: 0.5;
+  border-radius: 8px;
 }
 .grid { display: grid; gap: 16px; margin-bottom: 24px; }
 .grid-2 { grid-template-columns: 1fr 1fr; }
@@ -626,3 +627,126 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
 .char-info .char-name { font-weight: bold; color: var(--red-dark); font-family: "Cinzel", serif; }
 .char-info .char-details { font-size: 0.85rem; color: var(--ink-light); }
 .char-actions { display: flex; gap: 10px; align-items: center; }
+
+/* =========================================
+   13. STICKY CONDITIONS
+   ========================================= */
+#sticky-conditions-container {
+  position: absolute;
+  top: 20px;
+  right: -50px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.sticky-condition-icon {
+  background: var(--red);
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: -2px 2px 5px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
+  border: 1px solid var(--red-dark);
+  border-right: none;
+}
+
+.sticky-condition-icon:hover {
+  background: var(--red-dark);
+  transform: translateX(-3px);
+  width: auto;
+  padding: 0 12px;
+}
+
+.sticky-condition-icon:hover span {
+    display: none;
+}
+
+.sticky-condition-icon:hover::after {
+    content: attr(title);
+    white-space: nowrap;
+}
+
+/* =========================================
+   14. SIDEBAR MENU
+   ========================================= */
+.hamburger-btn {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 3001;
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.hamburger-btn:hover { background: var(--red-dark); }
+
+.sidebar-nav {
+  position: fixed;
+  top: 0;
+  left: -280px;
+  width: 280px;
+  height: 100%;
+  background: var(--parchment);
+  border-right: 2px solid var(--gold);
+  box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+  z-index: 3002;
+  transition: left 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-nav.open { left: 0; }
+
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 3000;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.sidebar-overlay.open { display: block; opacity: 1; }
+
+.sidebar-header {
+  padding: 20px;
+  background: var(--red);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sidebar-header h3 { margin: 0; font-family: 'Cinzel', serif; }
+.close-sidebar-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+.sidebar-content { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+
+.sidebar-btn {
+  background: white; border: 1px solid var(--gold); padding: 12px; text-align: left;
+  font-family: 'Cinzel', serif; font-weight: 600; color: var(--ink); cursor: pointer;
+  border-radius: 4px; transition: all 0.2s; width: 100%; display: block;
+}
+.sidebar-btn:hover { background: var(--parchment-dark); border-color: var(--red); color: var(--red-dark); transform: translateX(5px); }
+}
