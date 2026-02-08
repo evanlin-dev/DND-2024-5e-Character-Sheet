@@ -125,7 +125,7 @@
      element.style.height = element.scrollHeight + "px";
    }
    document.addEventListener("input", function (event) {
-     if (event.target.tagName.toLowerCase() === "textarea" && event.target.id !== "lastSavedTextarea") { autoResizeTextarea(event.target); }
+     if (event.target.tagName.toLowerCase() === "textarea" && event.target.id !== "lastSavedTextarea" && !event.target.classList.contains("note-textarea")) { autoResizeTextarea(event.target); }
    });
    function resizeAllTextareas() { document.querySelectorAll("textarea:not(#lastSavedTextarea)").forEach(autoResizeTextarea); }
    
@@ -299,9 +299,40 @@
    window.addFeatureItem = function (containerId, title = "", desc = "") {
      const container = document.getElementById(containerId);
      if (!container) return;
+     
      const box = document.createElement("div");
      box.className = "feature-box";
-     box.innerHTML = `<div class="feature-header"><input type="text" class="feature-title-input" placeholder="Feature Name" value="${title.replace(/"/g, '&quot;')}" oninput="saveCharacter()"><button class="delete-feature-btn" onclick="this.parentElement.parentElement.remove(); saveCharacter()">×</button></div><textarea class="feature-desc-input" placeholder="Description..." oninput="saveCharacter()">${desc}</textarea>`;
+     box.innerHTML = `<div class="feature-header"><input type="text" class="feature-title-input" placeholder="Feature Name" value="${title.replace(/"/g, '&quot;')}" oninput="saveCharacter()"><button class="delete-feature-btn" onclick="this.closest('.feature-box').remove(); saveCharacter()">×</button></div>`;
+     
+     const descContainer = document.createElement("div");
+     descContainer.className = "feature-desc-container";
+     descContainer.style.cursor = "pointer";
+     descContainer.style.minHeight = "20px";
+     
+     const display = document.createElement("div");
+     display.className = "feature-desc-display";
+     display.style.fontSize = "0.9rem";
+     display.style.color = "var(--ink)";
+     display.style.lineHeight = "1.4";
+     // Replace newlines with <br> for display if it's plain text, but trust HTML if present
+     display.innerHTML = desc ? desc.replace(/\n/g, '<br>') : "<em style='color:#999'>Click to edit description...</em>";
+     
+     const input = document.createElement("textarea");
+     input.className = "feature-desc-input";
+     input.style.display = "none";
+     input.value = desc;
+     
+     descContainer.appendChild(display);
+     descContainer.appendChild(input);
+     
+     descContainer.onclick = function() {
+         const titleVal = box.querySelector('.feature-title-input').value;
+         openNoteEditor(titleVal || "Feature Description", input, null, (newVal) => {
+             display.innerHTML = newVal ? newVal.replace(/\n/g, '<br>') : "<em style='color:#999'>Click to edit description...</em>";
+         });
+     };
+     
+     box.appendChild(descContainer);
      container.appendChild(box);
      saveCharacter();
    };
@@ -384,7 +415,7 @@
      if (!skipSave) saveCharacter();
    };
    
-   window.openNoteEditor = function (itemName, inputElement, btnElement) {
+   window.openNoteEditor = function (itemName, inputElement, btnElement, callback) {
      const existing = document.getElementById("note-modal-overlay"); if (existing) existing.remove();
      const overlay = document.createElement("div"); overlay.id = "note-modal-overlay"; overlay.className = "note-modal-overlay";
      const box = document.createElement("div"); box.className = "note-modal";
@@ -402,7 +433,15 @@
        if (isEditing) { displayDiv.style.display = "none"; textArea.style.display = "block"; editBtn.innerText = "View Rendered"; textArea.focus(); }
        else { displayDiv.innerHTML = textArea.value || "<em style='color:#999'>No notes...</em>"; displayDiv.style.display = "block"; textArea.style.display = "none"; editBtn.innerText = "Edit Text"; }
      };
-     saveBtn.onclick = () => { inputElement.value = textArea.value; if (textArea.value.trim().length > 0) { btnElement.classList.add("has-notes"); } else { btnElement.classList.remove("has-notes"); } saveCharacter(); overlay.remove(); };
+     saveBtn.onclick = () => { 
+         inputElement.value = textArea.value; 
+         if (btnElement) {
+            if (textArea.value.trim().length > 0) { btnElement.classList.add("has-notes"); } else { btnElement.classList.remove("has-notes"); } 
+         }
+         if (callback) callback(textArea.value);
+         saveCharacter(); 
+         overlay.remove(); 
+     };
      const closeBtn = document.createElement("button"); closeBtn.innerText = "Cancel"; closeBtn.style.background = "none"; closeBtn.style.border = "none"; closeBtn.style.cursor = "pointer"; closeBtn.onclick = () => overlay.remove();
      
      controls.appendChild(editBtn); controls.appendChild(closeBtn); controls.appendChild(saveBtn);
@@ -1476,7 +1515,7 @@
      if (!container) return [];
      return Array.from(container.querySelectorAll(".feature-box")).map((box) => ({
        title: box.querySelector(".feature-title-input").value,
-       desc: box.querySelector("textarea").value,
+       desc: box.querySelector(".feature-desc-input").value,
      }));
    }
    

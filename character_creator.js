@@ -92,67 +92,75 @@ document.addEventListener('DOMContentLoaded', () => {
     const DB_VERSION = 7;
 
     // Helper to process entries recursively
-    const processEntries = (entries) => {
+    const processEntries = (entries, depth = 0) => {
         if (!entries) return "";
         if (typeof entries === 'string') return entries;
-        if (!Array.isArray(entries)) return "";
         
-        return entries.map(e => {
-            if (!e) return "";
-            if (typeof e === 'string') return e;
-            
-            let text = "";
-            
-            // Handle Lists
-            if (e.type === 'list') {
-                if (e.name) text += `<strong>${e.name}</strong>`;
-                if (e.items) {
-                    text += "<ul style='margin-top:4px; padding-left:20px; list-style-type:disc;'>" + e.items.map(item => {
-                        let itemText = "";
-                        if (typeof item === 'object') {
-                            if (item.name) itemText += `<strong>${item.name}</strong> `;
-                            if (item.entry) itemText += (typeof item.entry === 'string' ? item.entry : processEntries([item.entry]));
-                            else if (item.entries) itemText += processEntries(item.entries);
-                        } else {
-                            itemText += item;
-                        }
-                        return `<li>${itemText}</li>`;
-                    }).join("") + "</ul>";
-                }
-                return text;
-            }
+        if (Array.isArray(entries)) {
+            return entries.map(e => processEntries(e, depth)).join("<br><br>");
+        }
 
-            // Handle Tables
-            if (e.type === 'table') {
-                if (e.caption) text += `<strong>${e.caption}</strong>`;
-                text += "<table class='currency-table' style='width:100%; font-size:0.8rem; margin-top:5px;'>";
-                if (e.colLabels) {
-                    text += "<thead><tr>" + e.colLabels.map(l => `<th>${l.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "")}</th>`).join("") + "</tr></thead>";
+        const entry = entries;
+        let type = entry.type || "entries";
+        let result = "";
+
+        switch (type) {
+            case "entries":
+            case "section":
+            case "item":
+                if (entry.name) result += `<strong>${entry.name}.</strong> `;
+                if (entry.entries) result += processEntries(entry.entries, depth + 1);
+                else if (entry.entry) result += processEntries(entry.entry, depth + 1);
+                break;
+            
+            case "list":
+                if (entry.name) result += `<strong>${entry.name}</strong>`;
+                result += "<ul style='margin-top:4px; padding-left:20px; list-style-type:disc;'>";
+                if (entry.items) {
+                    result += entry.items.map(item => {
+                        return `<li>${processEntries(item, depth + 1)}</li>`;
+                    }).join("");
                 }
-                if (e.rows) {
-                    text += "<tbody>" + e.rows.map(row => "<tr>" + row.map(cell => {
+                result += "</ul>";
+                break;
+
+            case "table":
+                if (entry.caption) result += `<strong>${entry.caption}</strong>`;
+                result += "<table class='currency-table' style='width:100%; font-size:0.8rem; margin-top:5px;'>";
+                if (entry.colLabels) {
+                    result += "<thead><tr>" + entry.colLabels.map(l => `<th>${processEntries(l, depth)}</th>`).join("") + "</tr></thead>";
+                }
+                if (entry.rows) {
+                    result += "<tbody>" + entry.rows.map(row => "<tr>" + row.map(cell => {
                         let cellContent = cell;
-                        if (typeof cell === 'object') {
-                            if (cell.roll) cellContent = `${cell.roll.min}-${cell.roll.max}`;
-                            else cellContent = processEntries([cell]);
+                        if (typeof cell === 'object' && cell.roll) {
+                            cellContent = `${cell.roll.min}-${cell.roll.max}`;
                         }
-                        return `<td>${String(cellContent).replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "")}</td>`;
+                        return `<td>${processEntries(cellContent, depth)}</td>`;
                     }).join("") + "</tr>").join("") + "</tbody>";
                 }
-                text += "</table>";
-                return text;
-            }
+                result += "</table>";
+                break;
 
-            if (e.name && (e.type === 'section' || e.type === 'entries')) text += `<strong>${e.name}.</strong> `;
+            case "inset":
+            case "insetReadaloud":
+            case "quote":
+                result += "<div style='background:rgba(0,0,0,0.05); padding:10px; border-left:3px solid var(--gold); margin:10px 0;'>";
+                if (entry.name) result += `<strong>${entry.name}</strong><br>`;
+                if (entry.entries) result += processEntries(entry.entries, depth + 1);
+                if (entry.by) result += `<div style='text-align:right; font-style:italic;'>— ${entry.by}</div>`;
+                result += "</div>";
+                break;
             
-            if (e.entries) text += processEntries(e.entries);
-            else if (e.items) text += processEntries(e.items);
-            else if (e.entry) text += (typeof e.entry === 'string' ? e.entry : processEntries([e.entry]));
-            else if (e.caption) text += e.caption;
-            else if (e.text) text += e.text;
-            
-            return text;
-        }).filter(t => t && t.trim().length > 0).join("<br><br>");
+            default:
+                if (entry.name) result += `<strong>${entry.name}.</strong> `;
+                if (entry.entries) result += processEntries(entry.entries, depth + 1);
+                else if (entry.entry) result += processEntries(entry.entry, depth + 1);
+                else if (entry.text) result += entry.text;
+                break;
+        }
+        
+        return result;
     };
 
     function openDB() {
@@ -400,7 +408,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     } catch (e) {}
                 });
                 console.log("All Optional Features:", allOptionalFeatures);
-                console.log("All Mastery Properties:", allMasteryProperties);
             }
         } catch (e) { console.error("Error loading DB:", e); }
     }
@@ -770,6 +777,61 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (selectedFeatName) {
                     const candidates = allFeats.filter(ft => ft.name === selectedFeatName);
                     let feat = candidates.find(ft => ft.source === 'XPHB') || candidates.find(ft => ft.source === 'PHB') || candidates[0];
+                    let parentFeat = null;
+
+                    // If not found, check if it's a version inside another feat
+                    if (!feat) {
+                        for (const f of allFeats) {
+                            if (f._versions) {
+                                const v = f._versions.find(v => v.name === selectedFeatName);
+                                if (v) { 
+                                    feat = v; 
+                                    parentFeat = f;
+                                    break; 
+                                }
+                            }
+                        }
+                    }
+
+                    // Fallback for Magic Initiate synthetic names
+                    if (!feat && selectedFeatName.startsWith("Magic Initiate (")) {
+                        const pCandidates = allFeats.filter(ft => ft.name === "Magic Initiate");
+                        feat = pCandidates.find(ft => ft.source === 'XPHB') || pCandidates.find(ft => ft.source === 'PHB') || pCandidates[0];
+                    }
+
+                    if (feat && (!feat.entries || (feat.entries.length === 1 && typeof feat.entries[0] === 'string')) && feat._copy) {
+                        const copyName = feat._copy.name;
+                        const copySource = feat._copy.source || feat.source;
+                        const original = allFeats.find(f => f.name === copyName && (f.source === copySource || !feat._copy.source));
+                        if (original && original.entries) feat = { ...original, ...feat, entries: original.entries };
+                    }
+
+                    // Render Parent Feat Description if we have a version selected
+                    if (parentFeat) {
+                        const parentDiv = document.createElement('div');
+                        parentDiv.style.marginTop = "10px";
+                        parentDiv.style.padding = "10px";
+                        parentDiv.style.backgroundColor = "rgba(255, 255, 255, 0.7)";
+                        parentDiv.style.border = "1px solid var(--gold)";
+                        parentDiv.style.borderRadius = "4px";
+                        
+                        let parentDesc = processEntries(parentFeat.entries);
+                        parentDesc = parentDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+
+                        parentDiv.innerHTML = `
+                            <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">Feat: ${parentFeat.name}</div>
+                            <div style="font-size:0.85rem; color:var(--ink); line-height:1.4;">${parentDesc}</div>
+                        `;
+                        targetParent.appendChild(parentDiv);
+                    }
+
+                    // If it's Magic Initiate, we might want to show the specific class description if available, 
+                    // or just the parent is fine as the custom UI handles the rest.
+                    if (feat && feat.name === "Magic Initiate" && selectedFeatName.includes("(")) {
+                        // The parent description is generic. The user sees the class selection UI above.
+                        // We can append a small note or just rely on the parent description.
+                    }
+
                     if (feat) {
                         const featDiv = document.createElement('div');
                         featDiv.style.marginTop = "10px";
@@ -782,7 +844,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         featDesc = featDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
 
                         featDiv.innerHTML = `
-                            <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">Feat: ${feat.name}</div>
+                            <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">${parentFeat ? 'Version: ' : 'Feat: '}${selectedFeatName.includes('Magic Initiate') ? selectedFeatName : feat.name}</div>
                             <div style="font-size:0.85rem; color:var(--ink); line-height:1.4;">${featDesc}</div>
                         `;
                         targetParent.appendChild(featDiv);
@@ -803,6 +865,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (selectedFeatName) {
                     const candidates = allFeats.filter(ft => ft.name === selectedFeatName);
                     let feat = candidates.find(ft => ft.source === 'XPHB') || candidates.find(ft => ft.source === 'PHB') || candidates[0];
+                    let parentFeat = null;
+
+                    // If not found, check if it's a version inside another feat
+                    if (!feat) {
+                        for (const f of allFeats) {
+                            if (f._versions) {
+                                const v = f._versions.find(v => v.name === selectedFeatName);
+                                if (v) { 
+                                    feat = v; 
+                                    parentFeat = f;
+                                    break; 
+                                }
+                            }
+                        }
+                    }
+
+                    // Fallback for Magic Initiate synthetic names
+                    if (!feat && selectedFeatName.startsWith("Magic Initiate (")) {
+                        const pCandidates = allFeats.filter(ft => ft.name === "Magic Initiate");
+                        feat = pCandidates.find(ft => ft.source === 'XPHB') || pCandidates.find(ft => ft.source === 'PHB') || pCandidates[0];
+                    }
+
+                    if (feat && (!feat.entries || (feat.entries.length === 1 && typeof feat.entries[0] === 'string')) && feat._copy) {
+                        const copyName = feat._copy.name;
+                        const copySource = feat._copy.source || feat.source;
+                        const original = allFeats.find(f => f.name === copyName && (f.source === copySource || !feat._copy.source));
+                        if (original && original.entries) feat = { ...original, ...feat, entries: original.entries };
+                    }
+
+                    // Render Parent Feat Description if we have a version selected
+                    if (parentFeat) {
+                        const parentDiv = document.createElement('div');
+                        parentDiv.style.marginTop = "10px";
+                        parentDiv.style.padding = "10px";
+                        parentDiv.style.backgroundColor = "rgba(255, 255, 255, 0.7)";
+                        parentDiv.style.border = "1px solid var(--gold)";
+                        parentDiv.style.borderRadius = "4px";
+                        
+                        let parentDesc = processEntries(parentFeat.entries);
+                        parentDesc = parentDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+
+                        parentDiv.innerHTML = `
+                            <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">Feat: ${parentFeat.name}</div>
+                            <div style="font-size:0.85rem; color:var(--ink); line-height:1.4;">${parentDesc}</div>
+                        `;
+                        targetParent.appendChild(parentDiv);
+                    }
+
                     if (feat) {
                         const featDiv = document.createElement('div');
                         featDiv.style.marginTop = "10px";
@@ -815,7 +925,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         featDesc = featDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
 
                         featDiv.innerHTML = `
-                            <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">Feat: ${feat.name}</div>
+                            <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">${parentFeat ? 'Version: ' : 'Feat: '}${feat.name}</div>
                             <div style="font-size:0.85rem; color:var(--ink); line-height:1.4;">${featDesc}</div>
                         `;
                         targetParent.appendChild(featDiv);
@@ -904,6 +1014,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     let feat = candidates.find(ft => ft.source === 'XPHB');
                     if (!feat) feat = candidates.find(ft => ft.source === 'PHB');
                     if (!feat) feat = candidates[0];
+
+                    if (feat && (!feat.entries || (feat.entries.length === 1 && typeof feat.entries[0] === 'string')) && feat._copy) {
+                        const copyName = feat._copy.name;
+                        const copySource = feat._copy.source || feat.source;
+                        const original = allFeats.find(f => f.name === copyName && (f.source === copySource || !feat._copy.source));
+                        if (original && original.entries) feat = { ...original, ...feat, entries: original.entries };
+                    }
 
                     if (feat) {
                         const featDiv = document.createElement('div');
@@ -1947,6 +2064,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // If currentSelection is a version, map it back to parent for the main dropdown
+        let parentFeatName = currentSelection;
+        if (currentSelection && currentSelection.startsWith("Magic Initiate (")) {
+            parentFeatName = "Magic Initiate";
+        } else if (currentSelection && !available.some(f => f.name === currentSelection)) {
+            for (const f of available) {
+                if (f._versions && f._versions.some(v => v.name === currentSelection)) {
+                    parentFeatName = f.name;
+                    break;
+                }
+            }
+        }
+
         const select = document.createElement('select');
         select.className = 'styled-select';
         select.style.width = '100%';
@@ -1954,20 +2084,290 @@ document.addEventListener('DOMContentLoaded', () => {
         const defaultOption = document.createElement('option');
         defaultOption.value = "";
         defaultOption.textContent = "Select a Feat...";
-        if (!currentSelection) defaultOption.selected = true;
+        if (!parentFeatName) defaultOption.selected = true;
         select.appendChild(defaultOption);
 
         available.forEach(feat => {
             const option = document.createElement('option');
             option.value = feat.name;
             option.textContent = feat.name;
-            if (currentSelection === feat.name) option.selected = true;
+            if (parentFeatName === feat.name) option.selected = true;
             select.appendChild(option);
         });
 
+        const updateFeatDetails = (selectedFeatName) => {
+            let featObj = available.find(f => f.name === selectedFeatName) || allFeats.find(f => f.name === selectedFeatName);
+            
+            // If not found, check if it's a version of an available feat
+            if (!featObj) {
+                for (const f of available) {
+                    if (f._versions && f._versions.some(v => v.name === selectedFeatName)) {
+                        featObj = f; // Keep parent for context, or find specific version object if needed
+                        break;
+                    }
+                }
+            }
+            console.log("Selected Feat:", featObj);
+
+            // Handle Versions (e.g. Magic Initiate)
+            const versionContainerId = `feat-version-${selectionKey.replace(/\s+/g, '-')}`;
+            const existingVersion = document.getElementById(versionContainerId);
+            if (existingVersion) existingVersion.remove();
+            
+            // Special handling for Magic Initiate (2024) to simplify UI
+            if (selectedFeatName === "Magic Initiate") {
+                // We will handle this with a custom UI below instead of generic versions
+            } else 
+            if (featObj && featObj._versions && selectedFeatName) {
+                console.log("Feat Versions:", featObj._versions);
+                const verDiv = document.createElement('div');
+                verDiv.id = versionContainerId;
+                verDiv.style.marginTop = "8px";
+                
+                const verSelect = document.createElement('select');
+                verSelect.className = 'styled-select feat-version-select';
+                verSelect.style.width = '100%';
+                verSelect.dataset.parentFeat = selectedFeatName;
+
+                // Check if a version is currently selected
+                let currentVersionSelection = null;
+                for (const item of selectedOptionalFeatures) {
+                    if (item.startsWith(selectionKey + ":") && item !== `${selectionKey}: ${selectedFeatName}`) {
+                        currentVersionSelection = item.substring(selectionKey.length + 2);
+                    }
+                }
+                
+                verSelect.innerHTML = `<option value="" disabled selected>Select Version...</option>` + 
+                                      featObj._versions.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
+                
+                verSelect.addEventListener('change', () => {
+                    const selectedVersionName = verSelect.value;
+                    
+                    // Prevent recursion loop or undefined state if we just re-call updateFeatDetails with the version name
+                    // actually we want to keep the parent selected in the main dropdown, but update the internal selection state
+
+                    // Update selection to be specific version
+                    const toRemove = [];
+                    selectedOptionalFeatures.forEach(k => {
+                        if (k.startsWith(selectionKey + ":")) toRemove.push(k);
+                    });
+                    toRemove.forEach(k => selectedOptionalFeatures.delete(k));
+                    
+                    if (selectedVersionName) {
+                        // Store as "ASI Level X: Feat Name (Version Name)" or just Version Name if unique
+                        // Better to store the specific version name if it exists in allFeats or can be found
+                        // But _versions are usually embedded. We might need to handle this in renderGrantedSpells.
+                        // For now, let's store the version name as the feature name if possible, or a composite.
+                        selectedOptionalFeatures.add(`${selectionKey}: ${selectedVersionName}`);
+                    }
+                    
+                    // Don't call updateFeatDetails(selectedVersionName) here because it might reset the UI if the version isn't a top-level feat
+                    renderClassFeatures();
+                    // We might want to trigger ASI updates if the version has specific ASI, but usually ASI is on parent or consistent.
+                });
+
+                if (currentVersionSelection) {
+                    verSelect.value = currentVersionSelection;
+                }
+
+                verDiv.appendChild(verSelect);
+                container.appendChild(verDiv);
+            }
+
+            // Handle Ability Score Increase from Feat
+            const asiContainerId = `feat-asi-${selectionKey.replace(/\s+/g, '-')}`;
+            const existingAsi = document.getElementById(asiContainerId);
+            if (existingAsi) existingAsi.remove();
+
+            if (featObj && featObj.ability && selectedFeatName) {
+                const asiDiv = document.createElement('div');
+                asiDiv.id = asiContainerId;
+                asiDiv.style.marginTop = "8px";
+                asiDiv.style.padding = "8px";
+                asiDiv.style.border = "1px dashed var(--gold)";
+                asiDiv.style.background = "rgba(255,255,255,0.3)";
+                asiDiv.innerHTML = `<div style="font-weight:bold; font-size:0.9rem; margin-bottom:4px;">Feat Ability Increase:</div>`;
+                
+                featObj.ability.forEach((ab, idx) => {
+                    if (ab.choose) {
+                        const amount = ab.choose.amount || 1;
+                        const options = ab.choose.from || ['str','dex','con','int','wis','cha'];
+                        const count = ab.choose.count || 1;
+                        
+                        for(let i=0; i<count; i++) {
+                            const sel = document.createElement('select');
+                            sel.className = 'styled-select feat-asi-select';
+                            sel.dataset.featKey = selectionKey;
+                            sel.dataset.amount = amount;
+                            sel.style.width = '100%';
+                            sel.style.marginBottom = '4px';
+                            
+                            const map = { 'str': 'Strength', 'dex': 'Dexterity', 'con': 'Constitution', 'int': 'Intelligence', 'wis': 'Wisdom', 'cha': 'Charisma' };
+                            
+                            sel.innerHTML = `<option value="" disabled selected>Select Ability (+${amount})</option>` + 
+                                            options.map(o => `<option value="${map[o] || o}">${map[o] || o}</option>`).join('');
+                            
+                            sel.addEventListener('change', () => {
+                                // Store selection in a way getFinalAbilityScores can read
+                                // We'll use a specific ID pattern or class for retrieval
+                            });
+                            
+                            asiDiv.appendChild(sel);
+                        }
+                    } else {
+                        // Static increase
+                        Object.entries(ab).forEach(([key, val]) => {
+                            const map = { 'str': 'Strength', 'dex': 'Dexterity', 'con': 'Constitution', 'int': 'Intelligence', 'wis': 'Wisdom', 'cha': 'Charisma' };
+                            if (map[key]) {
+                                asiDiv.innerHTML += `<div style="font-size:0.9rem;">+${val} ${map[key]}</div><input type="hidden" class="feat-asi-static" data-ability="${map[key]}" data-amount="${val}">`;
+                            }
+                        });
+                    }
+                });
+                container.appendChild(asiDiv);
+            }
+
+            // Custom UI for Magic Initiate (2024)
+            const magicInitId = `feat-magic-init-${selectionKey.replace(/\s+/g, '-')}`;
+            const existingMagicInit = document.getElementById(magicInitId);
+            if (existingMagicInit) existingMagicInit.remove();
+
+            if (selectedFeatName === "Magic Initiate") {
+                const miDiv = document.createElement('div');
+                miDiv.id = magicInitId;
+                miDiv.style.marginTop = "10px";
+                miDiv.style.padding = "10px";
+                miDiv.style.border = "1px solid var(--gold)";
+                miDiv.style.background = "rgba(255,255,255,0.5)";
+                miDiv.style.borderRadius = "4px";
+
+                miDiv.innerHTML = `<div style="font-weight:bold; margin-bottom:5px;">Magic Initiate Class:</div>`;
+                
+                const classSelect = document.createElement('select');
+                classSelect.className = 'styled-select';
+                classSelect.style.width = '100%';
+                classSelect.innerHTML = `
+                    <option value="" disabled selected>Select Class List...</option>
+                    <option value="Cleric">Cleric</option>
+                    <option value="Druid">Druid</option>
+                    <option value="Wizard">Wizard</option>
+                `;
+
+                // Check if already selected
+                let currentMIClass = null;
+                for (const item of selectedOptionalFeatures) {
+                    if (item.startsWith(selectionKey + ": Magic Initiate (")) {
+                        const match = item.match(/\(([^)]+)\)/);
+                        if (match) currentMIClass = match[1];
+                    }
+                }
+                if (currentMIClass) classSelect.value = currentMIClass;
+
+                const spellContainer = document.createElement('div');
+                spellContainer.style.marginTop = "10px";
+
+                classSelect.addEventListener('change', () => {
+                    const cls = classSelect.value;
+                    
+                    // Update selection state
+                    const toRemove = [];
+                    selectedOptionalFeatures.forEach(k => {
+                        if (k.startsWith(selectionKey + ":")) toRemove.push(k);
+                    });
+                    toRemove.forEach(k => selectedOptionalFeatures.delete(k));
+                    
+                    // Store as a "Version" string for compatibility with other logic
+                    selectedOptionalFeatures.add(`${selectionKey}: Magic Initiate (${cls})`);
+                    
+                    renderClassFeatures(); // Re-render to update description box
+                });
+
+                miDiv.appendChild(classSelect);
+                miDiv.appendChild(spellContainer);
+                container.appendChild(miDiv);
+
+                if (currentMIClass) {
+                    renderMagicInitiateSpells(spellContainer, currentMIClass);
+                }
+            }
+        };
+
+        const renderMagicInitiateSpells = (container, className) => {
+            container.innerHTML = '';
+            
+            // Helper to deduplicate spells preferring XPHB
+            const dedupeSpells = (spells) => {
+                const spellMap = new Map();
+                spells.forEach(s => {
+                    if (!spellMap.has(s.name)) {
+                        spellMap.set(s.name, s);
+                    } else {
+                        const existing = spellMap.get(s.name);
+                        if (s.source === 'XPHB') {
+                            spellMap.set(s.name, s);
+                        } else if (s.source === 'PHB' && existing.source !== 'XPHB') {
+                            spellMap.set(s.name, s);
+                        }
+                    }
+                });
+                return Array.from(spellMap.values()).sort((a,b) => a.name.localeCompare(b.name));
+            };
+
+            // Filter spells for this class
+            let cantrips = allSpells.filter(s => s.level === 0 && s.classes && (
+                (s.classes.fromClassList && s.classes.fromClassList.some(c => c.name === className)) ||
+                (Array.isArray(s.classes) && s.classes.some(c => (typeof c === 'string' ? c : c.name) === className))
+            ));
+            cantrips = dedupeSpells(cantrips);
+
+            let level1Spells = allSpells.filter(s => s.level === 1 && s.classes && (
+                (s.classes.fromClassList && s.classes.fromClassList.some(c => c.name === className)) ||
+                (Array.isArray(s.classes) && s.classes.some(c => (typeof c === 'string' ? c : c.name) === className))
+            ));
+            level1Spells = dedupeSpells(level1Spells);
+
+            const createSpellSelect = (label, options, idSuffix) => {
+                const div = document.createElement('div');
+                div.style.marginBottom = "8px";
+                div.innerHTML = `<label style="font-size:0.85rem; font-weight:bold;">${label}</label>`;
+                const sel = document.createElement('select');
+                sel.className = 'styled-select magic-init-spell';
+                sel.style.width = '100%';
+                sel.innerHTML = `<option value="">-- Select --</option>` + options.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+                
+                // We need to persist these selections. For now, we'll rely on the user re-selecting if they change class.
+                // Ideally, we'd store them in selectedSpells or a specific map.
+                // Since renderGrantedSpells reads from selectedSpells, we can hook into that.
+                
+                sel.addEventListener('change', () => {
+                    // Remove previous selection for this slot if tracked? 
+                    // Actually, let's just add to selectedSpells directly for simplicity in this context
+                    // But we need to know which slot it is to replace it.
+                    // A simpler way: Just let the user pick from the main spell list UI if we can trigger it,
+                    // OR just use this UI to populate selectedSpells.
+                    if (sel.value) selectedSpells.add(sel.value);
+                    renderGrantedSpells();
+                });
+
+                div.appendChild(sel);
+                return div;
+            };
+
+            container.appendChild(createSpellSelect("Cantrip 1", cantrips, "c1"));
+            container.appendChild(createSpellSelect("Cantrip 2", cantrips, "c2"));
+            container.appendChild(createSpellSelect("Level 1 Spell", level1Spells, "l1"));
+            
+            const note = document.createElement('div');
+            note.style.fontSize = "0.8rem";
+            note.style.fontStyle = "italic";
+            note.style.marginTop = "5px";
+            note.innerHTML = "Intelligence, Wisdom, or Charisma is your spellcasting ability for these spells.";
+            container.appendChild(note);
+        };
+
         select.addEventListener('change', () => {
             const selectedFeatName = select.value;
-            
+            updateFeatDetails(selectedFeatName);
             const toRemove = [];
             selectedOptionalFeatures.forEach(k => {
                 if (k.startsWith(selectionKey + ":")) toRemove.push(k);
@@ -1979,6 +2379,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             renderClassFeatures();
         });
+
+        if (parentFeatName) {
+            updateFeatDetails(parentFeatName);
+        }
 
         container.appendChild(select);
         parentElement.appendChild(container);
@@ -2055,6 +2459,51 @@ document.addEventListener('DOMContentLoaded', () => {
              if (race) selectedFeatures.push(race);
         }
 
+        // Add Feats (from ASI selections)
+        selectedOptionalFeatures.forEach(name => {
+            if (name.startsWith("ASI Level ")) {
+                const featName = name.substring(name.indexOf(':') + 2);
+                
+                // Check if this is a specific version selection (e.g. "Magic Initiate (Wizard)")
+                // If so, we should try to find that specific version object first
+                // However, allFeats might only contain the parent.
+                // If the user selected a version via the dropdown, 'featName' is the version name.
+                
+                // Try to find exact match first (Version)
+                let feat = allFeats.find(f => f.name === featName);
+                let magicInitiateClass = null;
+                
+                // Check if it's a version inside another feat
+                if (!feat) {
+                    // Handle Magic Initiate custom string
+                    if (featName.startsWith("Magic Initiate (")) {
+                        // It's a virtual version we created. Map to parent for description or find specific version if exists.
+                        // The parent "Magic Initiate" usually has the general description.
+                        feat = allFeats.find(f => f.name === "Magic Initiate");
+                        const match = featName.match(/\(([^)]+)\)/);
+                        if (match) magicInitiateClass = match[1];
+                    }
+                    
+                    for (const f of allFeats) {
+                        if (f._versions) {
+                            const v = f._versions.find(v => v.name === featName);
+                            if (v) { feat = v; break; }
+                        }
+                    }
+                }
+
+                if (feat) {
+                    // If Magic Initiate, skip adding generic choices to Granted Spells list
+                    // as they are handled by the custom UI and selectedSpells
+                    if (feat.name === "Magic Initiate") {
+                        // Skip
+                    } else {
+                        selectedFeatures.push(feat);
+                    }
+                }
+            }
+        });
+
         selectedFeatures.forEach(feat => {
             if (feat.additionalSpells) {
                 feat.additionalSpells.forEach(entry => {
@@ -2065,6 +2514,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             const lvl = parseInt(key);
                             if (!isNaN(lvl) && selectedLevel < lvl) return;
 
+                            // Filter out "Choose from Class" if it looks like a version choice we haven't made context for
+                            // This is a heuristic: if the choice involves a class list and we are in a feat context
+                            // that implies a choice (like Magic Initiate), we might want to hide it if it's too broad.
+                            // But for now, let's just render what's there, or filter duplicates.
+                            // The user complaint is about seeing ALL options.
+                            
                             if (Array.isArray(val)) {
                                 val.forEach(v => {
                                     if (typeof v === 'string') {
@@ -2074,7 +2529,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                     else if (v.choose) {
                                         const criteria = formatChoose(v.choose);
-                                        choices.push(`Choose ${v.count || 1} from: ${criteria}`);
+                                        // If criteria lists multiple classes (e.g. "Bard Spells, Cleric Spells..."), skip it
+                                        // This usually happens when the parent feat lists all possibilities.
+                                        // We only want to show this if it's a specific grant.
+                                        // For Magic Initiate, the parent has multiple entries in additionalSpells.
+                                        // We should probably only show them if we are sure.
+                                        // A simple fix for the user's issue: Don't show choices that are just "Level X Spells" without a class context if it's too broad.
+                                        if (!criteria.includes("Choose")) choices.push(`Choose ${v.count || 1} from: ${criteria}`);
                                     }
                                 });
                             } else if (typeof val === 'object') {
@@ -2083,9 +2544,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     };
                     
-                    if (entry.innate) extract(entry.innate);
-                    if (entry.known) extract(entry.known);
-                    if (entry.prepared) extract(entry.prepared);
+                    // Only process this entry if it matches the selected version (if applicable)
+                    // The entry might have a 'name' property matching the version (e.g. "Wizard Spells")
+                    // If the feat has _versions, and we selected a version, we should only show entries that match that version.
+                    
+                    let shouldProcess = true;
+                    if (feat._versions && feat.name !== feat.name) { // If feat is a version (name differs from parent usually, or we check parent)
+                         // If we are a version object, we just process our own properties.
+                         // But if we are the parent object and have _versions, we should check if 'entry' has a name.
+                    }
+                    
+                    // If the entry has a name (e.g. "Bard Spells"), and the feat name doesn't include "Bard", skip it?
+                    // Better: If the feat object has _versions (meaning it's the parent), ignore these specific named entries.
+                    if (feat._versions && entry.name) shouldProcess = false;
+
+                    if (shouldProcess) {
+                        if (entry.innate) extract(entry.innate);
+                        if (entry.known) extract(entry.known);
+                        if (entry.prepared) extract(entry.prepared);
+                    }
                 });
             }
         });
@@ -2168,7 +2645,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (bg) {
             // Handle _copy if entries are missing (e.g. "Augen Trust (Spy)" copies "Criminal")
-            if (!bg.entries && bg._copy) {
+            if ((!bg.entries || (bg.entries.length === 1 && typeof bg.entries[0] === 'string')) && bg._copy) {
                 const original = allBackgrounds.find(b => b.name === bg._copy.name && b.source === bg._copy.source);
                 if (original && original.entries) bg = { ...original, ...bg, entries: original.entries };
             }
@@ -2395,6 +2872,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         let feat = candidates.find(ft => ft.source === 'XPHB');
                         if (!feat) feat = candidates.find(ft => ft.source === 'PHB');
                         if (!feat) feat = candidates[0];
+
+                        if (feat && !feat.entries && feat._copy) {
+                            const copyName = feat._copy.name;
+                            const copySource = feat._copy.source || feat.source;
+                            const original = allFeats.find(f => f.name === copyName && (f.source === copySource || !feat._copy.source));
+                            if (original && original.entries) feat = { ...original, ...feat, entries: original.entries };
+                        }
 
                         if (feat) {
                             const featDiv = document.createElement('div');
@@ -3171,6 +3655,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (p1 && scores[p1]) scores[p1] += 1;
         }
 
+        // 3. Feat ASI
+        document.querySelectorAll('.feat-asi-select').forEach(sel => {
+            if (sel.value && scores[sel.value]) {
+                scores[sel.value] += parseInt(sel.dataset.amount || 1);
+            }
+        });
+        document.querySelectorAll('.feat-asi-static').forEach(inp => {
+            const ability = inp.dataset.ability;
+            const amount = parseInt(inp.dataset.amount);
+            if (ability && scores[ability]) scores[ability] += amount;
+        });
+
         return scores;
     }
 
@@ -3201,16 +3697,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!content) return "";
                 return content.split('|')[0];
             });
-            // 2. Replace breaks with newlines
-            clean = clean.replace(/<br\s*\/?>/gi, '\n');
-            // 3. Replace list items
-            clean = clean.replace(/<li>/gi, '\n• ');
-            clean = clean.replace(/<\/li>/gi, '');
-            clean = clean.replace(/<ul>/gi, '');
-            clean = clean.replace(/<\/ul>/gi, '\n');
-            // 4. Strip remaining HTML
-            clean = clean.replace(/<[^>]*>/g, '');
-            // 5. Decode entities (basic)
+            // 2. Decode entities (basic)
             clean = clean.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'");
             return clean.trim();
         };
@@ -3427,27 +3914,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 const candidates = allFeats.filter(f => f.name === featName);
                 let feat = candidates.find(f => f.source === 'XPHB') || candidates.find(f => f.source === 'PHB') || candidates[0];
                 if (feat) {
-                    if (!feat.entries && feat._copy) {
+                    if ((!feat.entries || (feat.entries.length === 1 && typeof feat.entries[0] === 'string')) && feat._copy) {
                         const copyName = feat._copy.name;
-                        const copySource = feat._copy.source || 'PHB';
-                        const original = allFeats.find(f => f.name === copyName && (f.source === copySource || !feat._copy.source));
+                        const copySource = feat._copy.source || feat.source;
+                        const original = allFeats.find(f => f.name === copyName && (f.source === copySource || !feat._copy.source) && f.entries);
                         if (original && original.entries) feat = { ...original, ...feat, entries: original.entries };
                     }
-                    let desc = processEntries(feat.entries || []);
+                    let desc = "";
+                    if (feat.entries) desc = processEntries(feat.entries);
+                    else if (feat.description) desc = feat.description;
+                    else if (feat.desc) desc = Array.isArray(feat.desc) ? processEntries(feat.desc) : feat.desc;
                     features.push({ title: `Feat: ${feat.name}`, desc: cleanText(desc), type: 'feat' });
                 }
             } else {
                 const candidates = allOptionalFeatures.filter(f => f.name === name);
                 let feat = candidates.find(f => f.source === 'XPHB') || candidates.find(f => f.source === 'PHB') || candidates[0];
                 if (feat) {
-                    if (!feat.entries && feat._copy) {
+                    if ((!feat.entries || (feat.entries.length === 1 && typeof feat.entries[0] === 'string')) && feat._copy) {
                         const copyName = feat._copy.name;
                         const copySource = feat._copy.source || feat.source;
-                        const original = allOptionalFeatures.find(o => o.name === copyName && (o.source === copySource || !feat._copy.source));
+                        const original = allOptionalFeatures.find(o => o.name === copyName && (o.source === copySource || !feat._copy.source) && o.entries);
                         if (original && original.entries) feat = { ...original, ...feat, entries: original.entries };
                     }
-                    let desc = processEntries(feat.entries);
-                    features.push({ title: feat.name, desc: cleanText(desc), type: 'class' });
+                    let desc = "";
+                    if (feat.entries) desc = processEntries(feat.entries);
+                    else if (feat.description) desc = feat.description;
+                    else if (feat.desc) desc = Array.isArray(feat.desc) ? processEntries(feat.desc) : feat.desc;
+                    const title = feat.level ? `Lvl ${feat.level}: ${feat.name}` : feat.name;
+                    features.push({ title: title, desc: cleanText(desc), type: 'class' });
                 }
             }
         });
@@ -3492,7 +3986,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const bgCandidates = allBackgrounds.filter(b => b.name === selectedBackground);
         let bg = bgCandidates.find(b => b.source === 'XPHB') || bgCandidates[0];
         if (bg) {
-            if (!bg.entries && bg._copy) {
+            if ((!bg.entries || (bg.entries.length === 1 && typeof bg.entries[0] === 'string')) && bg._copy) {
                 const original = allBackgrounds.find(b => b.name === bg._copy.name && b.source === bg._copy.source);
                 if (original && original.entries) bg = { ...original, ...bg, entries: original.entries };
             }
@@ -3809,6 +4303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         localStorage.setItem('dndCharacter', JSON.stringify(charData));
+
         window.location.href = 'index.html';
     }
 });

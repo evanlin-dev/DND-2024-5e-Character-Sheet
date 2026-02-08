@@ -303,7 +303,7 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
 .note-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 5000; display: flex; justify-content: center; align-items: center; }
 .note-modal { background: #f4e8d8; padding: 20px; width: 450px; max-width: 90%; border-radius: 8px; border: 2px solid #8b2e2e; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 10px; max-height: 80vh; }
 .note-display { background: white; padding: 10px; border: 1px solid var(--gold); border-radius: 4px; min-height: 100px; max-height: 300px; overflow-y: auto; font-family: "Crimson Text", serif; font-size: 1rem; line-height: 1.4; }
-.note-textarea { width: 100%; height: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; resize: vertical; display: none; }
+.note-textarea { width: 100%; height: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; resize: vertical; display: none; overflow-y: auto; }
 .note-controls { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 
 /* Ability Score Modal */
