@@ -2607,78 +2607,90 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Background Logic
-    let backgroundSelect = document.getElementById('creator-background');
-    if (backgroundSelect) {
-        backgroundSelect.addEventListener('change', () => {
-            selectedBackground = backgroundSelect.value;
-            renderBackgroundInfo();
-        });
-    }
-
-    function renderBackgroundOptions() {
-        // Ensure UI exists and is styled correctly (Fix for mobile visibility)
-        if (!backgroundSelect) {
-            const step3 = document.getElementById('step-3-section');
-            const container = document.createElement('div');
-            container.innerHTML = `
-                <h3 class="section-title" style="margin-top:0;">Select Background</h3>
-                <div class="field" style="margin-bottom: 20px;">
-                    <span class="field-label">Background</span>
-                    <select id="creator-background" class="styled-select" style="width: 100%;">
-                        <option value="" disabled selected>Select Background</option>
-                    </select>
-                </div>
-                <div id="creator-background-info" style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 4px; border: 1px dashed var(--gold);">
-                    <em style="color:var(--ink-light);">Select a background to view details...</em>
+    // Background Logic (Modal Picker)
+    window.openBackgroundPicker = function() {
+        let modal = document.getElementById('backgroundPickerModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'backgroundPickerModal';
+            modal.className = 'info-modal-overlay';
+            modal.innerHTML = `
+                <div class="info-modal-content" style="max-width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+                    <button class="close-modal-btn" onclick="document.getElementById('backgroundPickerModal').style.display='none'">&times;</button>
+                    <h3 class="info-modal-title" style="text-align: center">Select Background</h3>
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="bgSearchInput" placeholder="Search backgrounds..." style="border: 1px solid var(--gold); padding: 8px; border-radius: 4px; width: 100%;">
+                    </div>
+                    <div id="backgroundPickerList" class="checklist-grid" style="grid-template-columns: 1fr; flex: 1; overflow-y: auto; gap: 8px;"></div>
                 </div>
             `;
-            step3.insertBefore(container, step3.firstChild);
-            backgroundSelect = document.getElementById('creator-background');
-            backgroundSelect.addEventListener('change', () => {
-                selectedBackground = backgroundSelect.value;
-                renderBackgroundInfo();
+            document.body.appendChild(modal);
+            
+            document.getElementById('bgSearchInput').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('#backgroundPickerList .checklist-item').forEach(item => {
+                    item.style.display = item.textContent.toLowerCase().includes(term) ? 'flex' : 'none';
+                });
             });
-        } else {
-            backgroundSelect.classList.add('styled-select');
-            if (!backgroundSelect.closest('.field')) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'field';
-                wrapper.style.marginBottom = '20px';
-                backgroundSelect.parentNode.insertBefore(wrapper, backgroundSelect);
-                const label = document.createElement('span');
-                label.className = 'field-label';
-                label.textContent = 'Background';
-                wrapper.appendChild(label);
-                wrapper.appendChild(backgroundSelect);
-            }
         }
-
-        backgroundSelect.innerHTML = '<option value="" disabled selected>Select Background</option>';
         
-        // Deduplicate preferring XPHB
+        const list = document.getElementById('backgroundPickerList');
+        list.innerHTML = '';
+        
         const uniqueMap = new Map();
         allBackgrounds.forEach(b => {
             if (!uniqueMap.has(b.name)) {
                 uniqueMap.set(b.name, b);
             } else {
                 const existing = uniqueMap.get(b.name);
-                if (b.source === 'XPHB') {
-                    uniqueMap.set(b.name, b);
-                } else if (b.source === 'PHB' && existing.source !== 'XPHB') {
-                    uniqueMap.set(b.name, b);
-                }
+                if (b.source === 'XPHB') uniqueMap.set(b.name, b);
+                else if (b.source === 'PHB' && existing.source !== 'XPHB') uniqueMap.set(b.name, b);
             }
         });
-        
         const sortedBackgrounds = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
         sortedBackgrounds.forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = b.name;
-            opt.textContent = b.name;
-            backgroundSelect.appendChild(opt);
+            const div = document.createElement('div');
+            div.className = 'checklist-item';
+            div.textContent = b.name;
+            div.onclick = () => {
+                selectedBackground = b.name;
+                const btn = document.getElementById('creator-background-btn');
+                if(btn) btn.textContent = b.name;
+                renderBackgroundInfo();
+                modal.style.display = 'none';
+            };
+            list.appendChild(div);
         });
+
+        modal.style.display = 'flex';
+        document.getElementById('bgSearchInput').focus();
+    };
+
+    // Bind initial button if exists
+    const initialBgBtn = document.getElementById('creator-background-btn');
+    if (initialBgBtn) initialBgBtn.onclick = window.openBackgroundPicker;
+
+    function renderBackgroundOptions() {
+        // Ensure UI exists (Fix for mobile visibility if step 3 was hidden)
+        let bgBtn = document.getElementById('creator-background-btn');
+        if (!bgBtn) {
+            const step3 = document.getElementById('step-3-section');
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <h3 class="section-title" style="margin-top:0;">Select Background</h3>
+                <div class="field" style="margin-bottom: 20px;">
+                    <span class="field-label">Background</span>
+                    <button id="creator-background-btn" class="styled-select" style="width: 100%; text-align: left;">Select Background</button>
+                </div>
+                <div id="creator-background-info" style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 4px; border: 1px dashed var(--gold);">
+                    <em style="color:var(--ink-light);">Select a background to view details...</em>
+                </div>
+            `;
+            step3.insertBefore(container, step3.firstChild);
+            bgBtn = document.getElementById('creator-background-btn');
+            bgBtn.onclick = window.openBackgroundPicker;
+        }
     }
 
     function renderBackgroundInfo() {
@@ -3094,7 +3106,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSpeciesSection() {
         const step3 = document.getElementById('step-3-section');
-        if (document.getElementById('creator-species')) return;
+        if (document.getElementById('creator-species-btn')) return;
 
         const container = document.createElement('div');
         container.style.marginTop = "30px";
@@ -3105,9 +3117,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <h3 class="section-title" style="margin-top:0;">Select Species</h3>
             <div class="field" style="margin-bottom: 20px;">
                 <span class="field-label">Species</span>
-                <select id="creator-species" class="styled-select" style="width: 100%;">
-                    <option value="" disabled selected>Select Species</option>
-                </select>
+                <button id="creator-species-btn" class="styled-select" style="width: 100%; text-align: left;">Select Species</button>
             </div>
             <div id="creator-species-info" style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 4px; border: 1px dashed var(--gold);">
                 <em style="color:var(--ink-light);">Select a species to view details...</em>
@@ -3116,12 +3126,38 @@ document.addEventListener('DOMContentLoaded', () => {
         
         step3.appendChild(container);
 
-        const speciesSelect = document.getElementById('creator-species');
-        speciesSelect.addEventListener('change', () => {
-            selectedSpecies = speciesSelect.value;
-            renderSpeciesInfo();
-        });
+        document.getElementById('creator-species-btn').onclick = window.openSpeciesPicker;
+    }
 
+    window.openSpeciesPicker = function() {
+        let modal = document.getElementById('speciesPickerModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'speciesPickerModal';
+            modal.className = 'info-modal-overlay';
+            modal.innerHTML = `
+                <div class="info-modal-content" style="max-width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+                    <button class="close-modal-btn" onclick="document.getElementById('speciesPickerModal').style.display='none'">&times;</button>
+                    <h3 class="info-modal-title" style="text-align: center">Select Species</h3>
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="speciesSearchInput" placeholder="Search species..." style="border: 1px solid var(--gold); padding: 8px; border-radius: 4px; width: 100%;">
+                    </div>
+                    <div id="speciesPickerList" class="checklist-grid" style="grid-template-columns: 1fr; flex: 1; overflow-y: auto; gap: 8px;"></div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            document.getElementById('speciesSearchInput').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('#speciesPickerList .checklist-item').forEach(item => {
+                    item.style.display = item.textContent.toLowerCase().includes(term) ? 'flex' : 'none';
+                });
+            });
+        }
+        
+        const list = document.getElementById('speciesPickerList');
+        list.innerHTML = '';
+        
         const uniqueMap = new Map();
         allSpecies.forEach(r => {
             if (!uniqueMap.has(r.name)) {
@@ -3135,12 +3171,21 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const sorted = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name));
         sorted.forEach(r => {
-            const opt = document.createElement('option');
-            opt.value = r.name;
-            opt.textContent = r.name;
-            speciesSelect.appendChild(opt);
+            const div = document.createElement('div');
+            div.className = 'checklist-item';
+            div.textContent = r.name;
+            div.onclick = () => {
+                selectedSpecies = r.name;
+                document.getElementById('creator-species-btn').textContent = r.name;
+                renderSpeciesInfo();
+                modal.style.display = 'none';
+            };
+            list.appendChild(div);
         });
-    }
+
+        modal.style.display = 'flex';
+        document.getElementById('speciesSearchInput').focus();
+    };
 
     function renderSpeciesInfo() {
         const container = document.getElementById('creator-species-info');
