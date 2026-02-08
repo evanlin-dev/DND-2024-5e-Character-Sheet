@@ -922,24 +922,80 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
       "name name name lvl"
       "time time range range"
       "prep ritual conc mat"
-      "info . drag del";
-    gap: 10px;
-    padding: 12px;
+      "info drag drag del";
+    gap: 12px;
+    padding: 16px;
     align-items: center;
+    background: white;
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 12px;
   }
 
-  .spell-row .spell-name { grid-area: name; font-weight: bold; }
-  .spell-row .spell-lvl { grid-area: lvl; text-align: right; }
-  .spell-row .spell-time { grid-area: time; font-size: 0.9rem; }
-  .spell-row .spell-range { grid-area: range; font-size: 0.9rem; }
-  .spell-row .spell-col-prep { grid-area: prep; justify-self: center; flex-direction: column; }
-  .spell-row .spell-col-ritual { grid-area: ritual; justify-self: center; flex-direction: column; }
-  .spell-row .spell-col-conc { grid-area: conc; justify-self: center; flex-direction: column; }
-  .spell-row .spell-col-mat { grid-area: mat; justify-self: center; flex-direction: column; }
-  .spell-row .skill-info-btn { grid-area: info; }
-  .spell-row .delete-feature-btn { grid-area: del; justify-self: end; }
-  .spell-row .drag-handle { grid-area: drag; justify-self: center; }
-  .mobile-label { display: block; font-size: 0.7rem; color: var(--ink-light); margin-bottom: 2px; font-weight: bold; }
+  .spell-row .spell-name { 
+      grid-area: name; 
+      font-size: 1.1rem; 
+      font-weight: 700; 
+      color: var(--red-dark);
+      border-bottom: 1px solid var(--parchment-dark);
+      padding-bottom: 4px;
+  }
+  
+  .spell-row .spell-lvl { 
+      grid-area: lvl; 
+      text-align: center; 
+      font-weight: bold;
+      background: var(--parchment);
+      border-radius: 4px;
+      height: 32px;
+      border: 1px solid var(--gold);
+  }
+
+  .spell-row .spell-time { grid-area: time; font-size: 0.9rem; color: var(--ink-light); }
+  .spell-row .spell-range { grid-area: range; font-size: 0.9rem; text-align: right; color: var(--ink-light); }
+
+  .spell-row .spell-col-prep, 
+  .spell-row .spell-col-ritual, 
+  .spell-row .spell-col-conc, 
+  .spell-row .spell-col-mat { 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      background: var(--parchment-dark);
+      border-radius: 6px;
+      padding: 6px 2px;
+      height: 100%;
+  }
+  
+  .spell-row .spell-col-prep { grid-area: prep; }
+  .spell-row .spell-col-ritual { grid-area: ritual; }
+  .spell-row .spell-col-conc { grid-area: conc; }
+  .spell-row .spell-col-mat { grid-area: mat; }
+
+  .spell-row .skill-info-btn { grid-area: info; width: 32px; height: 32px; font-size: 1rem; background: var(--parchment); justify-self: start; }
+  .spell-row .delete-feature-btn { grid-area: del; justify-self: end; font-size: 1.6rem; color: var(--red); padding: 0 8px; }
+  .spell-row .drag-handle { grid-area: drag; justify-self: center; font-size: 1.4rem; color: var(--gold-dark); padding: 8px; }
+  
+  .mobile-label { 
+      display: block; 
+      font-size: 0.65rem; 
+      color: var(--ink); 
+      margin-bottom: 4px; 
+      font-weight: bold; 
+      text-transform: uppercase;
+  }
+
+  .spell-row.cantrip-row {
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+      "name name name name name lvl"
+      "time time time range range range"
+      "ritual ritual conc conc mat mat"
+      "info drag drag drag drag del";
+  }
+  .spell-row.cantrip-row .spell-col-prep { display: none !important; }
 
   /* DM Screen Mobile */
   .dice-rolls-buckets { grid-template-columns: repeat(4, 1fr) !important; }

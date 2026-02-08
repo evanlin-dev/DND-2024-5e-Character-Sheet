@@ -2101,6 +2101,7 @@ window.addSpellRow = function (containerId, defaultLevel = 1, data = null) {
   const isPrep = data ? data.prepared : containerId === "preparedSpellsList";
   const isCantrip =
     containerId === "cantripList" || defaultLevel === 0 || lvl === "0";
+  if (isCantrip) row.classList.add("cantrip-row");
   const prepVisibility = isCantrip ? "visibility:hidden;" : "";
   const rChecked = data && data.ritual ? "checked" : "";
   const cChecked = data && data.concentration ? "checked" : "";
