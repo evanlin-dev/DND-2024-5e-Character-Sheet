@@ -308,6 +308,14 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
 .spell-slot.used { background: var(--red); border-color: var(--red-dark); }
 .spell-slot.used::after { content: "×"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 1.3rem; font-weight: 700; }
 
+.resource-item { background: white; border: 1px solid var(--gold); border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+.resource-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--gold-dark); padding-bottom: 4px; }
+.resource-name { font-weight: bold; color: var(--red-dark); font-family: "Cinzel", serif; font-size: 1rem; border: none; background: transparent; }
+.resource-controls { display: flex; align-items: center; gap: 8px; }
+.resource-slots { display: flex; gap: 6px; flex-wrap: wrap; }
+.resource-slot { width: 24px; height: 24px; border: 2px solid var(--gold); border-radius: 50%; cursor: pointer; background: var(--parchment); position: relative; }
+.resource-slot.used { background: var(--ink); border-color: var(--ink); }
+
 /* =========================================
    10. INVENTORY (UPDATED GRID LAYOUT)
    ========================================= */

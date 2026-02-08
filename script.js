@@ -166,6 +166,7 @@ const deathSaves = {
   failures: [false, false, false],
 };
 let spellSlotsData = [{ level: 1, total: 1, used: 0 }];
+let resourcesData = [];
 let pbScores = { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 };
 const pbCosts = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
 const maxPoints = 27;
@@ -2041,6 +2042,56 @@ window.addWeapon = function (data = null) {
   if (!window.isInitializing) saveCharacter();
 };
 
+// Resources
+window.renderResources = function() {
+    const container = document.getElementById('resourcesContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    resourcesData.forEach((res, index) => {
+        const box = document.createElement('div');
+        box.className = 'resource-item';
+        
+        let slotsHtml = '';
+        for(let i=0; i<res.max; i++) {
+            const isUsed = i < res.used ? 'used' : '';
+            slotsHtml += `<div class="resource-slot ${isUsed}" onclick="toggleResourceSlot(${index}, ${i})"></div>`;
+        }
+
+        box.innerHTML = `
+            <div class="resource-header">
+                <input type="text" class="resource-name" value="${res.name}" onchange="updateResourceName(${index}, this.value)" placeholder="Resource Name">
+                <div class="resource-controls">
+                    <input type="number" class="resource-max" value="${res.max}" onchange="updateResourceMax(${index}, this.value)" min="1" style="width:40px;">
+                    <button class="delete-feature-btn" onclick="deleteResource(${index})">&times;</button>
+                </div>
+            </div>
+            <div class="resource-slots">${slotsHtml}</div>
+        `;
+        container.appendChild(box);
+    });
+};
+
+window.addResource = function() {
+    resourcesData.push({ name: "New Resource", max: 3, used: 0 });
+    renderResources();
+    saveCharacter();
+};
+window.deleteResource = function(index) {
+    if(confirm("Delete this resource?")) {
+        resourcesData.splice(index, 1);
+        renderResources();
+        saveCharacter();
+    }
+};
+window.updateResourceName = function(index, val) { resourcesData[index].name = val; saveCharacter(); };
+window.updateResourceMax = function(index, val) { resourcesData[index].max = parseInt(val) || 1; if(resourcesData[index].used > resourcesData[index].max) resourcesData[index].used = resourcesData[index].max; renderResources(); saveCharacter(); };
+window.toggleResourceSlot = function(index, slotIndex) {
+    if (slotIndex < resourcesData[index].used) resourcesData[index].used = slotIndex;
+    else resourcesData[index].used = slotIndex + 1;
+    renderResources();
+    saveCharacter();
+};
+
 // Spells
 function renderSpellSlots() {
   const container = document.getElementById("spellSlotsContainer");
@@ -2444,6 +2495,7 @@ window.saveCharacter = function () {
     activeConditions: document.getElementById("activeConditionsInput").value,
     heroicInspiration: document.getElementById("heroicInspiration").checked,
     defenses: document.getElementById("defenses").value,
+    resourcesData: resourcesData,
 
     weapons: Array.from(document.querySelectorAll(".weapon-item")).map(
       (item) => ({
@@ -3233,6 +3285,8 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       if (data.spellSlotsData) spellSlotsData = data.spellSlotsData;
+      if (data.resourcesData) resourcesData = data.resourcesData;
+      
       document.getElementById("cantripList").innerHTML = "";
       (data.cantripsList || []).forEach((s) => {
         try {
@@ -3282,6 +3336,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     updateModifiers();
     renderSpellSlots();
+    renderResources();
     updateHpBar();
     calculateWeight();
     renderWeaponTags();
