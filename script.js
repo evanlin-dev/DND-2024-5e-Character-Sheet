@@ -190,7 +190,7 @@ window.processEntries = function (entries) {
   if (!entries) return "";
   if (typeof entries === "string") return entries;
   if (Array.isArray(entries))
-    return entries.map((e) => window.processEntries(e)).join("<br><br>");
+    return entries.map((e) => window.processEntries(e)).filter(e => e).join("<br><br>");
 
   if (entries.type === "list") {
     return (

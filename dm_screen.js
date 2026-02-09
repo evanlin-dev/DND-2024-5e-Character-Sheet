@@ -978,7 +978,7 @@ document.addEventListener('DOMContentLoaded', () => {
                    else if (e.text) text += e.text;
                    
                    return text;
-               }).join("<br><br>");
+               }).filter(e => e).join("<br><br>");
             };
 
             resultsDiv.innerHTML = '';

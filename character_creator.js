@@ -42,6 +42,10 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedBox.style.background = 'var(--parchment)';
         const ind = selectedBox.querySelector('.check-indicator');
         if(ind) ind.style.display = 'block';
+
+        // Log selection
+        const val = selectedBox.querySelector('input[type="hidden"]')?.value;
+        console.log(`[Equipment Selected] ${radio.name}:`, val);
     };
 
     // Weapon DB (Copied for Character Creator)
@@ -98,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof entries === 'string') return entries;
         
         if (Array.isArray(entries)) {
-            return entries.map(e => processEntries(e, depth)).join("<br><br>");
+            return entries.map(e => processEntries(e, depth)).filter(e => e).join("<br><br>");
         }
 
         const entry = entries;
@@ -539,6 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.style.color = 'var(--ink)';
                 item.style.borderColor = 'var(--gold)';
             });
+            console.log("Selected Class:", c);
             selectedClass = c;
             div.style.background = 'var(--red)';
             div.style.color = 'white';
@@ -1367,6 +1372,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Starting Equipment
         if (clsObj.startingEquipment) {
+             console.log("Class Starting Equipment Data:", clsObj.startingEquipment);
              let equipItems = [];
              if (clsObj.startingEquipment.default) {
                  equipItems = clsObj.startingEquipment.default;
@@ -3185,6 +3191,7 @@ document.addEventListener('DOMContentLoaded', () => {
             div.className = 'checklist-item';
             div.textContent = b.name;
             div.onclick = () => {
+                console.log("Selected Background:", b.name);
                 selectedBackground = b.name;
                 const btn = document.getElementById('creator-background-btn');
                 if(btn) btn.textContent = b.name;
@@ -3513,8 +3520,27 @@ document.addEventListener('DOMContentLoaded', () => {
             let hasOptions = false;
 
             // Try Structured Data first
-            if (bg.startingEquipment && bg.startingEquipment.length > 0) {
-                const se = bg.startingEquipment[0];
+            if (bg.startingEquipment) {
+                console.log("Background Starting Equipment Data:", bg.startingEquipment);
+                const seList = Array.isArray(bg.startingEquipment) ? bg.startingEquipment : [bg.startingEquipment];
+                let baseItems = [];
+                let choicesA = [];
+                let choicesB = [];
+                let hasChoices = false;
+
+                seList.forEach(entry => {
+                    if (entry._) baseItems.push(...entry._);
+                    if (entry.default) baseItems.push(...entry.default);
+                    
+                    if (entry.a || entry.A) {
+                        hasChoices = true;
+                        choicesA.push(...(entry.a || entry.A));
+                    }
+                    if (entry.b || entry.B) {
+                        hasChoices = true;
+                        choicesB.push(...(entry.b || entry.B));
+                    }
+                });
                 
                 const parseItems = (arr) => {
                     if (!arr) return "";
@@ -3524,12 +3550,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             name = name.split('|')[0];
                             return name.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
                         }
-                        if (i.special) return i.special;
+                        if (i.special) {
+                            let name = i.special;
+                            if (i.quantity && i.quantity > 1) name = `${i.quantity} ${name}`;
+                            return name;
+                        }
                         if (i.item) {
                             let name = i.displayName || i.item.split('|')[0];
                             name = name.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
                             name = name.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
-                            if (i.quantity && i.quantity > 1) name += ` (${i.quantity})`;
+                            if (i.quantity && i.quantity > 1) name = `${i.quantity} ${name}`;
                             return name;
                         }
                         if (i.value) {
@@ -3540,18 +3570,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).filter(Boolean).join(', ');
                 };
 
-                if (se.A || se.B || se.a || se.b) {
+                const baseText = parseItems(baseItems);
+                
+                if (hasChoices) {
                     hasOptions = true;
-                    optAText = parseItems(se.A || se.a);
-                    optBText = parseItems(se.B || se.b);
-                } else if (se.default) {
-                    optAText = parseItems(se.default);
-                } else if (se.items) {
-                    optAText = parseItems(se.items);
-                } else if (se.entries) {
-                    optAText = parseItems(se.entries);
-                } else if (typeof se === 'string' || se.item) {
-                    optAText = parseItems(bg.startingEquipment);
+                    const aText = parseItems(choicesA);
+                    const bText = parseItems(choicesB);
+                    
+                    optAText = baseText ? (aText ? `${baseText}, ${aText}` : baseText) : aText;
+                    optBText = baseText ? (bText ? `${baseText}, ${bText}` : baseText) : bText;
+                } else {
+                    optAText = baseText;
                 }
             }
 
@@ -4491,19 +4520,49 @@ document.addEventListener('DOMContentLoaded', () => {
                     gp += parseInt(trailingGpMatch[2]) * qty;
                 }
 
-                // Lookup description
-                let desc = sourceLabel;
-                let foundItem = allItems.find(i => i.name.toLowerCase() === name.toLowerCase());
-                if (!foundItem && name.toLowerCase().endsWith('s')) {
-                     foundItem = allItems.find(i => i.name.toLowerCase() === name.toLowerCase().slice(0, -1));
+                // Check for prefix quantity (e.g. "2 Daggers")
+                const prefixMatch = name.match(/^(?:and\s+)?(\d+)\s+(.*)$/i);
+                if (prefixMatch) {
+                    if (!qtyMatch) {
+                        qty = parseInt(prefixMatch[1]);
+                    }
+                    name = prefixMatch[2].trim();
                 }
 
+                // Lookup description
+                let desc = sourceLabel;
+                
+                // Clean name for lookup
+                let lookupName = name.toLowerCase().trim();
+                // Remove multiple prefixes like "and a ", "a ", "the "
+                lookupName = lookupName.replace(/^(?:(?:and|a|an|the|set of|pair of|case of|pouch of|pack of|stick of|sticks of|bottle of|bottles of|flask of|flasks of|vial of|vials of)\s+)+/g, '');
+                lookupName = lookupName.replace(/^\d+\s+/, '');
+                lookupName = lookupName.replace(/[.,;]$/, '');
+
+                if (allItems.length === 0) console.warn("[addItemsFromList] Item DB is empty!");
+
+                let candidates = allItems.filter(i => i.name.toLowerCase() === lookupName);
+                if (candidates.length === 0 && lookupName.endsWith('s')) {
+                    candidates = allItems.filter(i => i.name.toLowerCase() === lookupName.slice(0, -1));
+                }
+
+                // Try removing parenthetical info (e.g. "Scale Mail (if proficient)" -> "Scale Mail")
+                if (candidates.length === 0 && lookupName.includes('(')) {
+                    const cleanParen = lookupName.replace(/\s*\(.*?\)/g, '').trim();
+                    candidates = allItems.filter(i => i.name.toLowerCase() === cleanParen);
+                }
+
+                let foundItem = candidates.find(i => i.source === 'XPHB') || candidates.find(i => i.source === 'PHB') || candidates[0];
+
                 if (foundItem) {
+                    console.log(`[Item Lookup] Found data for "${name}":`, foundItem);
                     if (foundItem.entries) desc = processEntries(foundItem.entries);
                     else if (foundItem.desc) desc = processEntries(foundItem.desc);
                     else if (foundItem.description) desc = foundItem.description;
                     
                     desc = cleanText(desc);
+                } else {
+                    console.warn(`[Item Lookup] No data found for "${name}" (lookup: "${lookupName}")`);
                 }
 
                 inventory.push({ name: name, qty: qty, weight: 0, equipped: false, description: desc });
@@ -4512,13 +4571,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Class Equipment
         const classEquipChoice = document.querySelector('input[name="class_equip_choice"]:checked')?.value;
+        console.log("[Create] Class Equip Choice:", classEquipChoice);
         if (classEquipChoice === 'equipment_a') {
              const val = document.getElementById('equip-opt-a-val')?.value;
+             console.log("[Create] Class Equip A Value:", val);
              addItemsFromList(val, "Class Equipment (Option A)");
         } else if (classEquipChoice === 'equipment_b') {
              const val = document.getElementById('equip-opt-b-val')?.value;
+             console.log("[Create] Class Equip B Value:", val);
              addItemsFromList(val, "Class Equipment (Option B)");
         } else {
+             console.log("[Create] Class Equip Default");
              if (clsObj && clsObj.startingEquipment) {
                  if (clsObj.startingEquipment.default) {
                      clsObj.startingEquipment.default.forEach(itemStr => {
@@ -4533,13 +4596,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Background Equipment
         const bgEquipChoice = document.querySelector('input[name="bg_equip_choice"]:checked')?.value;
+        console.log("[Create] BG Equip Choice:", bgEquipChoice);
         if (bgEquipChoice === 'gold') {
             gp += 50;
         } else if (bgEquipChoice === 'equipment_a') {
              const val = document.getElementById('bg-equip-opt-a-val')?.value;
+             console.log("[Create] BG Equip A Value:", val);
              addItemsFromList(val, "Background Equipment (Option A)");
         } else if (bgEquipChoice === 'equipment_b') {
              const val = document.getElementById('bg-equip-opt-b-val')?.value;
+             console.log("[Create] BG Equip B Value:", val);
              if (val) {
                  if (val.toLowerCase().replace(/[^a-z0-9]/g, '').includes('50gp')) {
                      gp += 50;
@@ -4549,12 +4615,15 @@ document.addEventListener('DOMContentLoaded', () => {
              }
         } else {
             const val = document.getElementById('bg-equip-default-val')?.value;
+            console.log("[Create] BG Equip Default Value:", val);
             if (val) {
                 addItemsFromList(val, "Background Equipment");
             } else {
                 inventory.push({ name: "Background Equipment", qty: 1, weight: 0, equipped: false, description: "See Background description for items." });
             }
         }
+
+        console.log("Selected Inventory:", inventory);
 
         // Capture Class Skills from Dropdowns
         document.querySelectorAll('.skill-select-dropdown').forEach(sel => {
