@@ -241,9 +241,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const formatDescription = (text) => {
         if (!text) return "";
+        if (window.cleanText) return window.cleanText(text);
         let clean = text;
-        clean = clean.replace(/\{@filter\s+([^}]+)\}/g, (match, content) => resolveFilterTag(content));
-        clean = clean.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+        clean = clean.replace(/\{@(\w+)\s*([^}]+)?\}/g, (match, tag, content) => {
+            if (tag === 'recharge') return content ? `(Recharge ${content}-6)` : "(Recharge 6)";
+            
+            if (!content) return "";
+            const parts = content.split('|');
+            const name = parts[0];
+
+            if (tag === 'filter') return resolveFilterTag(content); // Keep local filter logic if specific
+            if (tag === 'h') return "Hit: ";
+            if (tag === 'm') return "Miss: ";
+            if (tag === 'atk') {
+                if (name === 'm') return "Melee Attack: ";
+                if (name === 'r') return "Ranged Attack: ";
+                if (name === 'mw') return "Melee Weapon Attack: ";
+                if (name === 'rw') return "Ranged Weapon Attack: ";
+                if (name === 'ms') return "Melee Spell Attack: ";
+                if (name === 'rs') return "Ranged Spell Attack: ";
+                return "Attack: ";
+            }
+            if (tag === 'b' || tag === 'bold') return `<b>${name}</b>`;
+            if (tag === 'i' || tag === 'italic') return `<i>${name}</i>`;
+            if (tag === 'dc') return `DC ${name}`;
+            if (tag === 'hit') return `+${name}`;
+            if (tag === 'chance') return `${parts[1] || name + '%'}`;
+            if (tag === 'note') return `Note: ${name}`;
+
+            if (parts.length >= 3 && parts[2]) return parts[2];
+            return name;
+        });
         return clean;
     };
 
@@ -4410,11 +4438,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const cleanText = (text) => {
             if (!text) return "";
             let clean = text;
-            // 1. Replace 5e-tools tags {@tag content|...} -> content
-            clean = clean.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => {
-                if (!content) return "";
-                return content.split('|')[0];
-            });
+            // 1. Use formatDescription logic for tags
+            clean = formatDescription(clean);
             // 2. Decode entities (basic)
             clean = clean.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'");
             return clean.trim();

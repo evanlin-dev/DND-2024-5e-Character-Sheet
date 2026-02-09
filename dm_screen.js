@@ -138,7 +138,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <h3 style="margin: 0;">Dice Rolls</h3>
                         <button class="btn btn-secondary stats-btn" style="padding: 2px 8px; font-size: 0.7rem;">Get Stats</button>
                     </div>
-                    <div class="dice-rolls-buckets"
+                    <div class="dice-rolls-buckets"></div>
+                    <div style="display: flex; gap: 5px;">
                         <select class="add-roll-player player-select styled-select"><option value="" disabled selected>Select Player</option></select>
                         <input type="number" class="add-roll-value" placeholder="Roll">
                         <button class="btn btn-secondary add-roll-btn">Add</button>
@@ -951,11 +952,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Helper to clean 5e-tools style tags
             const cleanText = (str) => {
+                if (window.cleanText) return window.cleanText(str);
                 if (!str) return "";
-                return str.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => {
+                let cleaned = str.replace(/\{@(\w+)\s*([^}]+)?\}/g, (match, tag, content) => {
+                    if (tag === 'recharge') return content ? `(Recharge ${content}-6)` : "(Recharge 6)";
+                    
                     if (!content) return "";
-                    return content.split('|')[0];
+                    const parts = content.split('|');
+                    const name = parts[0];
+
+                    if (tag === 'h') return "Hit: ";
+                    if (tag === 'm') return "Miss: ";
+                    if (tag === 'atk') {
+                        if (name === 'm') return "Melee Attack: ";
+                        if (name === 'r') return "Ranged Attack: ";
+                        if (name === 'mw') return "Melee Weapon Attack: ";
+                        if (name === 'rw') return "Ranged Weapon Attack: ";
+                        if (name === 'ms') return "Melee Spell Attack: ";
+                        if (name === 'rs') return "Ranged Spell Attack: ";
+                        return "Attack: ";
+                    }
+                    if (tag === 'b' || tag === 'bold') return `<b>${name}</b>`;
+                    if (tag === 'i' || tag === 'italic') return `<i>${name}</i>`;
+                    if (tag === 'dc') return `DC ${name}`;
+                    if (tag === 'hit') return `+${name}`;
+                    if (tag === 'chance') return `${parts[1] || name + '%'}`;
+                    if (tag === 'note') return `Note: ${name}`;
+                    if (tag === 'filter') return name.split(';')[0].trim();
+                    
+                    if (parts.length >= 3 && parts[2]) return parts[2];
+                    return name;
                 });
+                return cleaned;
             };
 
             // Recursively extract text from entries array

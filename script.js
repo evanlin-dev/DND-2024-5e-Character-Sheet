@@ -109,6 +109,7 @@ const weaponProficiencyOptions = [
 
 // Weapon DB
 let dndWeaponsDB = {};
+window.dndTablesDB = {};
 
 const conditionsDB = {
   Blinded:
@@ -236,6 +237,55 @@ window.processEntries = function (entries) {
   if (entries.entries) text += window.processEntries(entries.entries);
   else if (entries.entry) text += window.processEntries(entries.entry);
   return text || entries.text || "";
+};
+
+// Helper to clean 5e-tools style tags (Global)
+window.cleanText = function (str) {
+  if (!str) return "";
+  let cleaned = str.replace(/\{@(\w+)\s*([^}]+)?\}/g, (match, tag, content) => {
+    if (tag === 'recharge') return content ? `(Recharge ${content}-6)` : "(Recharge 6)";
+    
+    if (!content) return "";
+    const parts = content.split('|');
+    const name = parts[0];
+
+    if (tag === 'h') return "Hit: ";
+    if (tag === 'm') return "Miss: ";
+    if (tag === 'atk') {
+        if (name === 'm') return "Melee Attack: ";
+        if (name === 'r') return "Ranged Attack: ";
+        if (name === 'mw') return "Melee Weapon Attack: ";
+        if (name === 'rw') return "Ranged Weapon Attack: ";
+        if (name === 'ms') return "Melee Spell Attack: ";
+        if (name === 'rs') return "Ranged Spell Attack: ";
+        return "Attack: ";
+    }
+    if (tag === 'b' || tag === 'bold') return `<b>${name}</b>`;
+    if (tag === 'i' || tag === 'italic') return `<i>${name}</i>`;
+    if (tag === 'dc') return `DC ${name}`;
+    if (tag === 'hit') return `+${name}`;
+    if (tag === 'chance') return `${parts[1] || name + '%'}`;
+    if (tag === 'note') return `Note: ${name}`;
+
+    if (tag === 'table') {
+        const tableName = name.split(';')[0].trim();
+        if (window.dndTablesDB && window.dndTablesDB[tableName]) {
+            return window.processEntries(window.dndTablesDB[tableName]);
+        }
+        return tableName;
+    }
+    if (tag === 'filter') return name.split(';')[0].trim();
+    
+    // Generic handler for pipe-separated content (name|source|display)
+    // If there's a display text (usually 3rd arg), use it. Otherwise use name.
+    if (parts.length >= 3 && parts[2]) return parts[2];
+    return name;
+  });
+
+  if (cleaned !== str && /\{@(\w+)\s*([^}]+)?\}/.test(cleaned)) {
+      return window.cleanText(cleaned);
+  }
+  return cleaned;
 };
 
 // Auto-resize logic
@@ -502,6 +552,7 @@ window.switchTab = function (tabName) {
   // Find the tab button that controls this tab and activate it
   const tabBtn = document.querySelector(`.tab[onclick*="'${tabName}'"]`);
   if (tabBtn) tabBtn.classList.add("active");
+  saveCharacter();
 };
 
 window.addFeatureItem = function (containerId, title = "", desc = "") {
@@ -796,6 +847,7 @@ window.addInventoryItem = function (
 
   div.appendChild(dragHandle);
   div.appendChild(check);
+  div.appendChild(descInput);
   div.appendChild(nameInput);
   div.appendChild(qtyInput);
   div.appendChild(weightInput);
@@ -1023,6 +1075,22 @@ function loadActionsFromData(parsedData) {
   }
 }
 
+function loadTablesFromData(parsedData) {
+  if (!parsedData) return;
+  parsedData.forEach((json) => {
+    try {
+      if (json.table && Array.isArray(json.table)) {
+        json.table.forEach((t) => {
+          if (t.name) {
+             t.type = "table"; 
+             window.dndTablesDB[t.name] = t;
+          }
+        });
+      }
+    } catch (e) {}
+  });
+}
+
 async function checkDataUploadStatus() {
   console.log(`Checking data upload status (DB v${DB_VERSION})...`);
   try {
@@ -1042,6 +1110,7 @@ async function checkDataUploadStatus() {
         });
         loadWeaponsFromData(parsedData);
         loadActionsFromData(parsedData);
+        loadTablesFromData(parsedData);
       }
       const btnItems = document.getElementById("btn-search-items-zip");
       const btnCantrips = document.getElementById("btn-search-cantrips-zip");
@@ -1255,15 +1324,6 @@ function renderItemSearchPage() {
 
   list.innerHTML = "";
 
-  // Helper to clean 5e-tools style tags
-  const cleanText = (str) => {
-    if (!str) return "";
-    return str.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => {
-      if (!content) return "";
-      return content.split("|")[0];
-    });
-  };
-
   itemsToShow.forEach((item) => {
     const div = document.createElement("div");
     div.className = "checklist-item";
@@ -1273,42 +1333,14 @@ function renderItemSearchPage() {
     const weight = item.weight || item.weight_lbs || 0;
     let desc = "";
 
-    // Recursively extract text from entries array
-    const processEntries = (entries) => {
-      if (!entries) return "";
-      if (typeof entries === "string") return entries;
-      if (!Array.isArray(entries)) return "";
-
-      return entries
-        .map((e) => {
-          if (!e) return "";
-          if (typeof e === "string") return e;
-
-          let text = "";
-          if (e.name && (e.type === "section" || e.type === "entries"))
-            text += `${e.name}. `;
-
-          if (e.entries) text += processEntries(e.entries);
-          else if (e.items) text += processEntries(e.items);
-          else if (e.entry)
-            text +=
-              typeof e.entry === "string" ? e.entry : processEntries([e.entry]);
-          else if (e.caption) text += e.caption;
-          else if (e.text) text += e.text;
-
-          return text;
-        })
-        .join("\n");
-    };
-
-    if (item.entries) desc = processEntries(item.entries);
+    if (item.entries) desc = window.processEntries(item.entries);
     if (!desc && item.inherits && item.inherits.entries)
-      desc = processEntries(item.inherits.entries);
+      desc = window.processEntries(item.inherits.entries);
     if (!desc && item.description) desc = item.description;
     if (!desc && item.text) desc = item.text;
 
     // Clean the description
-    desc = cleanText(desc);
+    desc = window.cleanText(desc);
 
     // Format description for preview
     let previewDesc =
@@ -1704,48 +1736,9 @@ function renderSpellSearchPage() {
       let time = "";
       let desc = "";
 
-      // Helper to clean 5e-tools style tags
-      const cleanText = (str) => {
-        if (!str) return "";
-        return str.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => {
-          if (!content) return "";
-          return content.split("|")[0];
-        });
-      };
-
-      // Recursively extract text from entries array
-      const processEntries = (entries) => {
-        if (!entries) return "";
-        if (typeof entries === "string") return entries;
-        if (!Array.isArray(entries)) return "";
-
-        return entries
-          .map((e) => {
-            if (!e) return "";
-            if (typeof e === "string") return e;
-
-            let text = "";
-            if (e.name && (e.type === "section" || e.type === "entries"))
-              text += `${e.name}. `;
-
-            if (e.entries) text += processEntries(e.entries);
-            else if (e.items) text += processEntries(e.items);
-            else if (e.entry)
-              text +=
-                typeof e.entry === "string"
-                  ? e.entry
-                  : processEntries([e.entry]);
-            else if (e.caption) text += e.caption;
-            else if (e.text) text += e.text;
-
-            return text;
-          })
-          .join("\n");
-      };
-
-      if (spell.entries) desc = processEntries(spell.entries);
+      if (spell.entries) desc = window.processEntries(spell.entries);
       else if (spell.description) desc = spell.description;
-      desc = cleanText(desc);
+      desc = window.cleanText(desc);
 
       if (spell.time && spell.time[0]) {
         const t = spell.time[0];
@@ -2582,6 +2575,7 @@ window.saveCharacter = function () {
     saveProficiency,
     deathSaves,
     currentTheme: document.body.className,
+    activeTab: document.querySelector(".tab-content.active")?.id,
   };
   localStorage.setItem("dndCharacter", JSON.stringify(characterData));
 };
@@ -2896,9 +2890,7 @@ window.injectCombatActions = function (actionsData) {
       document.getElementById("infoModalTitle").textContent = action.name;
       let desc = window.processEntries(action.entries);
       // Clean tags
-      desc = desc.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) =>
-        c ? c.split("|")[0] : "",
-      );
+      desc = window.cleanText(desc);
       document.getElementById("infoModalText").innerHTML = desc;
       document.getElementById("infoModal").style.display = "flex";
     };
@@ -3353,6 +3345,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
       if (data.shield) document.getElementById("shieldEquipped").checked = true;
+      if (data.activeTab) window.switchTab(data.activeTab);
     } else {
       document.querySelectorAll("input, textarea, select").forEach((el) => {
         if (el.type === "checkbox" || el.type === "radio") el.checked = false;
@@ -3633,7 +3626,7 @@ window.renderLevelUpFeatures = async function(charClass, charSubclass, level, sh
             div.style.background = 'white';
             
             let desc = window.processEntries(f.entries || f.entry);
-            desc = desc.replace(/\{@\w+\s*([^}]+)?\}/g, (m, c) => c ? c.split('|')[0] : "");
+            desc = window.cleanText(desc);
             
             div.innerHTML = `
                 <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); margin-bottom:5px; padding-bottom:2px;">
