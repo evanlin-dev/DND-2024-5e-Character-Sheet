@@ -218,6 +218,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (criteria['components & miscellaneous'] === 'ritual') {
                 if (!s.meta || !s.meta.ritual) return false;
             }
+            if (criteria['damage type'] !== undefined) {
+                if (!s.damageInflict) return false;
+                const requiredTypes = criteria['damage type'].split(';');
+                const hasType = s.damageInflict.some(t => requiredTypes.includes(t.toLowerCase()));
+                if (!hasType) return false;
+            }
             return true;
         }).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -610,6 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedLevel = parseInt(levelSelect.value);
         updateUIState();
         renderClassFeatures(true); // Suppress toast on level change
+        renderClassFeatures(); // Allow toast
     });
 
     function updateSubclassOptions(className) {
@@ -876,7 +883,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderSpellsForFeature(targetParent, selectedClass, selectedLevel, selectedSubclass, parseInt(match[1]));
                 }
             } else if (f.name.includes("Eldritch Invocations")) {
-                renderOptionalFeatures(targetParent, ["EI"], selectedClass, f.level, selectedSubclass);
+                renderOptionalFeatures(targetParent, ["EI"], selectedClass, selectedLevel, selectedSubclass);
             } else if (f.name.includes("Fighting Style")) {
                 const codes = ["FS"];
                 if (selectedClass === "Fighter") codes.push("FS:F");
@@ -1824,6 +1831,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     updateStyle();
                     renderGrantedSpells();
+                    renderClassFeatures(true);
                 };
 
                 grid.appendChild(spellDiv);
@@ -1899,9 +1907,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Spell Check
                     if (req.spell) {
                         const hasSpell = req.spell.some(s => {
-                            const sName = (typeof s === 'string' ? s : s.entry || "").split('|')[0].split('#')[0].toLowerCase();
+                            // Handle generic "choose" requirements (XPHB style)
+                            if (typeof s === 'object' && s.choose) {
+                                const filterStr = typeof s.choose === 'string' ? s.choose : s.choose.fromFilter;
+                                if (!filterStr) return false;
+                                const candidates = getSpellsFromFilter(filterStr);
+                                const candidateNames = new Set(candidates.map(c => c.name.toLowerCase()));
+                                for (const sel of selectedSpells) {
+                                    if (candidateNames.has(sel.toLowerCase())) return true;
+                                }
+                                return false;
+                            }
+                            const sName = (typeof s === 'string' ? s : s.entry || "").split('|')[0].split('#')[0].toLowerCase().trim();
                             for (const selected of selectedSpells) {
-                                if (selected.toLowerCase() === sName) return true;
+                                if (selected.toLowerCase().trim() === sName) return true;
                             }
                             return false;
                         });
@@ -1999,6 +2018,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).filter(t => t);
 
                 if (groupTexts.length) prereqText = ` <span style="color:var(--ink-light); font-size:0.8rem;">(Req: ${groupTexts.join(' OR ')})</span>`;
+                if (groupTexts.length) prereqText = ` <div style="color:var(--red); font-size:0.8rem; margin-top:2px;">Requires: ${groupTexts.join(' OR ')}</div>`;
             }
 
             const titleDiv = document.createElement('div');
