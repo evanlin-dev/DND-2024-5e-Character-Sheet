@@ -15,6 +15,10 @@
   --shadow-heavy: rgba(42, 24, 16, 0.3);
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 /* Class-Specific Theme Overrides */
 body.theme-artificer { --ink: #1f2e2e; --ink-light: #466d6d; --gold: #b87333; --gold-dark: #8a5220; --red: #008080; --red-dark: #004d4d; }
 body.theme-barbarian { --ink: #2b1b17; --ink-light: #5e4b35; --gold: #a0522d; --gold-dark: #6e2c00; --red: #c0392b; --red-dark: #7b241c; }
@@ -385,6 +389,14 @@ textarea { resize: vertical; min-height: 60px; line-height: 1.6; overflow-y: hid
 .info-modal-title { font-family: "Cinzel", serif; color: var(--red); font-size: 1.2rem; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gold); }
 .info-modal-text { font-size: 1rem; line-height: 1.6; color: var(--ink); }
 .close-modal-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 1.5rem; color: var(--ink-light); cursor: pointer; }
+
+/* Ensure modals opened from Level Up appear on top */
+#spellSearchModal,
+#xpTableModal,
+#infoModal,
+#classPickerModal {
+  z-index: 2010;
+}
 
 /* Currency Table */
 .currency-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
