@@ -164,6 +164,73 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     };
 
+    const getSpellsFromFilter = (filterString) => {
+        if (!filterString || allSpells.length === 0) return [];
+        const params = filterString.split('|');
+        const criteria = {};
+        params.forEach(p => {
+            const [k, v] = p.split('=');
+            if (k && v) criteria[k.toLowerCase().trim()] = v.toLowerCase().trim();
+        });
+
+        const matches = allSpells.filter(s => {
+            if (criteria.level !== undefined && parseInt(criteria.level) !== s.level) return false;
+            if (criteria.class !== undefined) {
+                const targetClass = criteria.class;
+                if (s._normalizedClasses) {
+                    if (!s._normalizedClasses.has(targetClass)) return false;
+                } else {
+                    let hasClass = false;
+                    const check = (c) => {
+                        const cName = (typeof c === 'string' ? c : c.name).toLowerCase();
+                        return cName === targetClass || cName.includes(targetClass);
+                    };
+                    if (s.classes) {
+                        if (Array.isArray(s.classes)) {
+                            if (s.classes.some(check)) hasClass = true;
+                        } else {
+                            if (s.classes.fromClassList && s.classes.fromClassList.some(check)) hasClass = true;
+                            if (s.classes.fromClassListVariant && s.classes.fromClassListVariant.some(check)) hasClass = true;
+                        }
+                    }
+                    if (!hasClass) return false;
+                }
+            }
+            if (criteria.school !== undefined) {
+                const map = { 'a': 'abjuration', 'c': 'conjuration', 'd': 'divination', 'e': 'enchantment', 'v': 'evocation', 'i': 'illusion', 'n': 'necromancy', 't': 'transmutation' };
+                const sSchool = s.school ? (map[s.school.toLowerCase()] || s.school).toLowerCase() : "";
+                const targetSchool = (map[criteria.school] || criteria.school).toLowerCase();
+                if (sSchool !== targetSchool) return false;
+            }
+            return true;
+        }).sort((a, b) => a.name.localeCompare(b.name));
+
+        // Deduplicate
+        const unique = [];
+        const seen = new Set();
+        matches.forEach(m => {
+            if (!seen.has(m.name)) {
+                seen.add(m.name);
+                unique.push(m);
+            }
+        });
+        return unique;
+    };
+
+    const resolveFilterTag = (content) => {
+        const parts = content.split('|');
+        const label = parts[0];
+        return label;
+    };
+
+    const formatDescription = (text) => {
+        if (!text) return "";
+        let clean = text;
+        clean = clean.replace(/\{@filter\s+([^}]+)\}/g, (match, content) => resolveFilterTag(content));
+        clean = clean.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+        return clean;
+    };
+
     function openDB() {
         return new Promise((resolve, reject) => {
             console.log(`[DB] Opening ${DB_NAME} version ${DB_VERSION}...`);
@@ -240,19 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                         const spellName = match[1].toLowerCase().trim();
                                         if (!spellClassMap[spellName]) spellClassMap[spellName] = new Set();
                                         spellClassMap[spellName].add(className);
-                                    }
-
-                                    // Optimization: Pre-calculate normalized classes for faster filtering
-                                    s._normalizedClasses = new Set();
-                                    const addClass = (c) => {
-                                        if (!c) return;
-                                        const name = (typeof c === 'string' ? c : c.name).toLowerCase().trim();
-                                        s._normalizedClasses.add(name);
-                                    };
-                                    if (s.classes) {
-                                        if (Array.isArray(s.classes)) s.classes.forEach(addClass);
-                                        if (s.classes.fromClassList) s.classes.fromClassList.forEach(addClass);
-                                        if (s.classes.fromClassListVariant) s.classes.fromClassListVariant.forEach(addClass);
                                     }
                                 });
                             }
@@ -334,6 +388,24 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 if (!s.classes.fromClassList.some(cl => cl.name === c)) {
                                                     s.classes.fromClassList.push({name: c, source: "PHB"});
                                                 }
+                                            });
+                                        }
+                                    }
+
+                                    // Optimization: Pre-calculate normalized classes for faster filtering
+                                    s._normalizedClasses = new Set();
+                                    const addClass = (c) => {
+                                        if (!c) return;
+                                        const name = (typeof c === 'string' ? c : c.name).toLowerCase().trim();
+                                        s._normalizedClasses.add(name);
+                                    };
+                                    if (s.classes) {
+                                        if (Array.isArray(s.classes)) s.classes.forEach(addClass);
+                                        if (s.classes.fromClassList) s.classes.fromClassList.forEach(addClass);
+                                        if (s.classes.fromClassListVariant) s.classes.fromClassListVariant.forEach(addClass);
+                                        if (s.classes.fromSubclass) {
+                                            s.classes.fromSubclass.forEach(sc => {
+                                                if (sc.class) addClass(sc.class.name);
                                             });
                                         }
                                     }
@@ -682,7 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             let desc = processEntries(f.entries || f.entry);
-            desc = desc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+            desc = formatDescription(desc);
             
             const subLabel = f.isSubclassFeature ? `<span style="font-size:0.75rem; color:var(--ink-light); font-style:italic; margin-left:4px;">(Subclass)</span>` : "";
             
@@ -814,6 +886,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         feat = pCandidates.find(ft => ft.source === 'XPHB') || pCandidates.find(ft => ft.source === 'PHB') || pCandidates[0];
                     }
 
+                    // Generic fallback for options (e.g. "Divinely Favored (Evil)")
+                    if (!feat && selectedFeatName.includes(" (")) {
+                         const baseName = selectedFeatName.substring(0, selectedFeatName.lastIndexOf(" ("));
+                         const pCandidates = allFeats.filter(ft => ft.name === baseName);
+                         feat = pCandidates.find(ft => ft.source === 'XPHB') || pCandidates.find(ft => ft.source === 'PHB') || pCandidates[0];
+                    }
+
                     if (feat && (!feat.entries || (feat.entries.length === 1 && typeof feat.entries[0] === 'string')) && feat._copy) {
                         const copyName = feat._copy.name;
                         const copySource = feat._copy.source || feat.source;
@@ -831,7 +910,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         parentDiv.style.borderRadius = "4px";
                         
                         let parentDesc = processEntries(parentFeat.entries);
-                        parentDesc = parentDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+                        parentDesc = formatDescription(parentDesc);
 
                         parentDiv.innerHTML = `
                             <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">Feat: ${parentFeat.name}</div>
@@ -856,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         featDiv.style.borderRadius = "4px";
                         
                         let featDesc = processEntries(feat.entries);
-                        featDesc = featDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+                        featDesc = formatDescription(featDesc);
                         
                         let prereqDisplay = "";
                         if (feat.prerequisite) {
@@ -942,7 +1021,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         parentDiv.style.borderRadius = "4px";
                         
                         let parentDesc = processEntries(parentFeat.entries);
-                        parentDesc = parentDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+                        parentDesc = formatDescription(parentDesc);
 
                         parentDiv.innerHTML = `
                             <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">Feat: ${parentFeat.name}</div>
@@ -960,7 +1039,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         featDiv.style.borderRadius = "4px";
                         
                         let featDesc = processEntries(feat.entries);
-                        featDesc = featDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+                        featDesc = formatDescription(featDesc);
 
                         featDiv.innerHTML = `
                             <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">${parentFeat ? 'Version: ' : 'Feat: '}${feat.name}</div>
@@ -1069,7 +1148,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         featDiv.style.borderRadius = "4px";
                         
                         let featDesc = processEntries(feat.entries);
-                        featDesc = featDesc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+                        featDesc = formatDescription(featDesc);
 
                         featDiv.innerHTML = `
                             <div style="font-weight:bold; color:var(--red-dark); border-bottom:1px solid var(--gold-dark); padding-bottom:4px; margin-bottom:6px;">Feat: ${feat.name}</div>
@@ -1120,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             div.style.cursor = 'pointer';
             
             let desc = processEntries(f.entries || f.entry);
-            desc = desc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+            desc = formatDescription(desc);
 
             const uniqueId = `preview-${f.name.replace(/[^a-zA-Z0-9]/g, '')}-${f.level}-${Math.random().toString(36).substr(2, 5)}`;
 
@@ -1882,7 +1961,7 @@ document.addEventListener('DOMContentLoaded', () => {
             div.appendChild(titleDiv);
             
             let desc = processEntries(opt.entries || opt.entry);
-            desc = desc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+            desc = formatDescription(desc);
             
             const descDiv = document.createElement('div');
             descDiv.style.fontSize = "0.85rem";
@@ -2136,10 +2215,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentSelection && currentSelection.startsWith("Magic Initiate (")) {
             parentFeatName = "Magic Initiate";
         } else if (currentSelection && !available.some(f => f.name === currentSelection)) {
+            let found = false;
             for (const f of available) {
                 if (f._versions && f._versions.some(v => v.name === currentSelection)) {
                     parentFeatName = f.name;
+                    found = true;
                     break;
+                }
+            }
+            // Check if it has a suffix (e.g. "Divinely Favored (Evil)")
+            if (!found && currentSelection.includes(" (")) {
+                const baseName = currentSelection.substring(0, currentSelection.lastIndexOf(" ("));
+                if (available.some(f => f.name === baseName)) {
+                    parentFeatName = baseName;
                 }
             }
         }
@@ -2323,67 +2411,151 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateAbilityScoreBonuses();
             }
 
-            // Custom UI for Magic Initiate (2024)
-            const magicInitId = `feat-magic-init-${selectionKey.replace(/\s+/g, '-')}`;
-            const existingMagicInit = document.getElementById(magicInitId);
-            if (existingMagicInit) existingMagicInit.remove();
+            // Generic Option Picker for Feats with named additionalSpells (e.g. Divinely Favored, Magic Initiate)
+            const hasNamedOptions = featObj && featObj.additionalSpells && featObj.additionalSpells.some(s => s.name);
+            
+            if (hasNamedOptions && selectedFeatName) {
+                const optDiv = document.createElement('div');
+                optDiv.style.marginTop = "10px";
+                optDiv.style.padding = "10px";
+                optDiv.style.border = "1px solid var(--gold)";
+                optDiv.style.background = "rgba(255,255,255,0.5)";
+                optDiv.style.borderRadius = "4px";
 
-            if (selectedFeatName === "Magic Initiate") {
-                const miDiv = document.createElement('div');
-                miDiv.id = magicInitId;
-                miDiv.style.marginTop = "10px";
-                miDiv.style.padding = "10px";
-                miDiv.style.border = "1px solid var(--gold)";
-                miDiv.style.background = "rgba(255,255,255,0.5)";
-                miDiv.style.borderRadius = "4px";
-
-                miDiv.innerHTML = `<div style="font-weight:bold; margin-bottom:5px;">Magic Initiate Class:</div>`;
+                const options = [...new Set(featObj.additionalSpells.map(s => s.name).filter(n => n))].sort();
                 
-                const classSelect = document.createElement('select');
-                classSelect.className = 'styled-select';
-                classSelect.style.width = '100%';
-                classSelect.innerHTML = `
-                    <option value="" disabled selected>Select Class List...</option>
-                    <option value="Cleric">Cleric</option>
-                    <option value="Druid">Druid</option>
-                    <option value="Wizard">Wizard</option>
-                `;
+                optDiv.innerHTML = `<div style="font-weight:bold; margin-bottom:5px;">Select Option:</div>`;
+                const optSelect = document.createElement('select');
+                optSelect.className = 'styled-select';
+                optSelect.style.width = '100%';
+                optSelect.innerHTML = `<option value="" disabled selected>Select...</option>` + 
+                                      options.map(o => `<option value="${o}">${o}</option>`).join('');
 
-                // Check if already selected
+                // Check current selection
+                let currentOption = null;
+                for (const item of selectedOptionalFeatures) {
+                    if (item.startsWith(`${selectionKey}: ${selectedFeatName} (`)) {
+                        const match = item.match(/\(([^)]+)\)/);
+                        if (match) currentOption = match[1];
+                    }
+                }
+                if (currentOption && options.includes(currentOption)) {
+                    optSelect.value = currentOption;
+                }
+
+                optSelect.addEventListener('change', () => {
+                    const val = optSelect.value;
+                    // Clear previous for this feat
+                    const toRemove = [];
+                    selectedOptionalFeatures.forEach(k => {
+                        if (k.startsWith(`${selectionKey}: ${selectedFeatName}`)) toRemove.push(k);
+                    });
+                    toRemove.forEach(k => selectedOptionalFeatures.delete(k));
+                    
+                    selectedOptionalFeatures.add(`${selectionKey}: ${selectedFeatName} (${val})`);
+                    renderClassFeatures();
+                });
+
+                optDiv.appendChild(optSelect);
+                container.appendChild(optDiv);
+
+                // Skip generic spell rendering for Magic Initiate as it has a custom UI
+                if (selectedFeatName !== "Magic Initiate") {
+                // Render Spell Choices for Selected Option
+                const spellChoiceDiv = document.createElement('div');
+                spellChoiceDiv.style.marginTop = "10px";
+                optDiv.appendChild(spellChoiceDiv);
+
+                const renderOptionSpellChoices = (optionName) => {
+                    spellChoiceDiv.innerHTML = '';
+                    if (!optionName) return;
+                    const optionObj = featObj.additionalSpells.find(s => s.name === optionName);
+                    if (!optionObj) return;
+
+                    const processChoice = (obj, label) => {
+                        if (!obj) return;
+                        if (Array.isArray(obj)) {
+                            obj.forEach(item => processChoice(item, label));
+                            return;
+                        }
+                        if (typeof obj === 'object') {
+                            if (obj.choose) {
+                                const criteria = typeof obj.choose === 'string' ? obj.choose : "";
+                                if (!criteria) return;
+                                const matches = getSpellsFromFilter(criteria);
+                                const count = obj.count || 1;
+                                
+                                const div = document.createElement('div');
+                                div.style.marginBottom = "8px";
+                                let displayLabel = label;
+                                if (criteria.includes("level=0")) displayLabel = "Cantrip";
+                                else if (criteria.includes("level=1")) displayLabel = "1st-level Spell";
+                                
+                                div.innerHTML = `<div style="font-size:0.85rem; font-weight:bold; margin-bottom:4px;">${displayLabel}</div>`;
+                                
+                                for(let i=0; i<count; i++) {
+                                    const select = document.createElement('select');
+                                    select.className = 'styled-select';
+                                    select.style.width = '100%';
+                                    select.style.marginBottom = '4px';
+                                    select.innerHTML = `<option value="">-- Select --</option>` + 
+                                                       matches.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+                                    
+                                    const selectedMatch = matches.find(s => selectedSpells.has(s.name));
+                                    if (selectedMatch) {
+                                        select.value = selectedMatch.name;
+                                        select.dataset.prev = selectedMatch.name;
+                                    }
+
+                                    select.addEventListener('change', () => {
+                                        const val = select.value;
+                                        const prev = select.dataset.prev;
+                                        if (prev) selectedSpells.delete(prev);
+                                        if (val) {
+                                            selectedSpells.add(val);
+                                            select.dataset.prev = val;
+                                        } else {
+                                            delete select.dataset.prev;
+                                        }
+                                        renderGrantedSpells();
+                                    });
+                                    div.appendChild(select);
+                                }
+                                spellChoiceDiv.appendChild(div);
+                            } else {
+                                Object.values(obj).forEach(v => processChoice(v, label));
+                            }
+                        }
+                    };
+
+                    if (optionObj.known) processChoice(optionObj.known, "Spell");
+                    if (optionObj.innate) processChoice(optionObj.innate, "Spell");
+                };
+
+                optSelect.addEventListener('change', () => renderOptionSpellChoices(optSelect.value));
+                if (optSelect.value) renderOptionSpellChoices(optSelect.value);
+                }
+            }
+
+            // Specific UI for Magic Initiate Spells (after option selected)
+            if (selectedFeatName === "Magic Initiate") {
                 let currentMIClass = null;
                 for (const item of selectedOptionalFeatures) {
-                    if (item.startsWith(selectionKey + ": Magic Initiate (")) {
+                    if (item.startsWith(`${selectionKey}: Magic Initiate (`)) {
                         const match = item.match(/\(([^)]+)\)/);
                         if (match) currentMIClass = match[1];
                     }
                 }
-                if (currentMIClass) classSelect.value = currentMIClass;
-
-                const spellContainer = document.createElement('div');
-                spellContainer.style.marginTop = "10px";
-
-                classSelect.addEventListener('change', () => {
-                    const cls = classSelect.value;
-                    
-                    // Update selection state
-                    const toRemove = [];
-                    selectedOptionalFeatures.forEach(k => {
-                        if (k.startsWith(selectionKey + ":")) toRemove.push(k);
-                    });
-                    toRemove.forEach(k => selectedOptionalFeatures.delete(k));
-                    
-                    // Store as a "Version" string for compatibility with other logic
-                    selectedOptionalFeatures.add(`${selectionKey}: Magic Initiate (${cls})`);
-                    
-                    renderClassFeatures(); // Re-render to update description box
-                });
-
-                miDiv.appendChild(classSelect);
-                miDiv.appendChild(spellContainer);
-                container.appendChild(miDiv);
-
                 if (currentMIClass) {
-                    renderMagicInitiateSpells(spellContainer, currentMIClass);
+                    const miDiv = document.createElement('div');
+                    miDiv.style.marginTop = "10px";
+                    miDiv.style.padding = "10px";
+                    miDiv.style.border = "1px solid var(--gold)";
+                    miDiv.style.background = "rgba(255,255,255,0.5)";
+                    miDiv.style.borderRadius = "4px";
+                    
+                    renderMagicInitiateSpells(miDiv, currentMIClass);
+                    container.appendChild(miDiv);
                 }
             }
         };
@@ -2410,16 +2582,15 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             // Filter spells for this class
-            let cantrips = allSpells.filter(s => s.level === 0 && s.classes && (
-                (s.classes.fromClassList && s.classes.fromClassList.some(c => c.name === className)) ||
-                (Array.isArray(s.classes) && s.classes.some(c => (typeof c === 'string' ? c : c.name) === className))
-            ));
+            let targetClass = className.toLowerCase().trim();
+            if (targetClass.endsWith(" spells")) {
+                targetClass = targetClass.replace(" spells", "");
+            }
+            
+            let cantrips = allSpells.filter(s => s.level === 0 && s._normalizedClasses && s._normalizedClasses.has(targetClass));
             cantrips = dedupeSpells(cantrips);
 
-            let level1Spells = allSpells.filter(s => s.level === 1 && s.classes && (
-                (s.classes.fromClassList && s.classes.fromClassList.some(c => c.name === className)) ||
-                (Array.isArray(s.classes) && s.classes.some(c => (typeof c === 'string' ? c : c.name) === className))
-            ));
+            let level1Spells = allSpells.filter(s => s.level === 1 && s._normalizedClasses && s._normalizedClasses.has(targetClass));
             level1Spells = dedupeSpells(level1Spells);
 
             const createSpellSelect = (label, options, idSuffix) => {
@@ -2609,7 +2780,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 div.style.padding = '10px';
                 
                 let desc = processEntries(f.entries);
-                desc = desc.replace(/{@\w+\s*([^}]+)?}/g, (m, c) => c ? c.split('|')[0] : "");
+                desc = formatDescription(desc);
                 
                 div.innerHTML = `
                     <div style="font-weight:bold; color:var(--red-dark); cursor:pointer; display:flex; justify-content:space-between;" onclick="const d = this.nextElementSibling; d.style.display = d.style.display === 'none' ? 'block' : 'none';">
@@ -2630,11 +2801,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container || !wrapper) return;
         
         container.innerHTML = '';
-        const spells = new Set();
-        const choices = [];
-
-        // Add manually selected spells
-        selectedSpells.forEach(s => spells.add(s));
+        
+        // We will append elements directly to container
+        // selectedSpells is the source of truth for selections
+        let hasContent = false;
 
         // Helper to format "Choose" strings
         const formatChoose = (str) => {
@@ -2656,7 +2826,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let feat = candidates.find(f => f.source === 'XPHB');
             if (!feat) feat = candidates.find(f => f.source === 'PHB');
             if (!feat) feat = candidates[0];
-            if (feat) selectedFeatures.push(feat);
+            if (feat) selectedFeatures.push({ feature: feat, contextName: name });
         });
 
         // Add Class Features
@@ -2667,7 +2837,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 !f.subclassShortName && 
                 f.level <= selectedLevel
             );
-            selectedFeatures.push(...classFeats);
+            classFeats.forEach(f => selectedFeatures.push({ feature: f, contextName: f.name }));
         }
 
         // Add Subclass Features
@@ -2678,21 +2848,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 f.source === selectedSubclassSource && 
                 f.level <= selectedLevel
             );
-            selectedFeatures.push(...subFeats);
+            subFeats.forEach(f => selectedFeatures.push({ feature: f, contextName: f.name }));
 
             const subclassObj = allSubclasses.find(s => 
                 s.className === selectedClass && 
                 s.shortName === selectedSubclass && 
                 s.source === selectedSubclassSource
             );
-            if (subclassObj) selectedFeatures.push(subclassObj);
+            if (subclassObj) selectedFeatures.push({ feature: subclassObj, contextName: subclassObj.name });
         }
 
         // Add Species Features
         if (selectedSpecies) {
              const candidates = allSpecies.filter(r => r.name === selectedSpecies);
              let race = candidates.find(r => r.source === 'XPHB') || candidates.find(r => r.source === 'PHB') || candidates[0];
-             if (race) selectedFeatures.push(race);
+             if (race) selectedFeatures.push({ feature: race, contextName: race.name });
         }
 
         // Add Feats (from ASI selections)
@@ -2720,6 +2890,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (match) magicInitiateClass = match[1];
                     }
                     
+                    // Handle generic option strings (e.g. "Divinely Favored (Evil)")
+                    let lookupName = featName;
+                    if (!lookupName.startsWith("Magic Initiate") && lookupName.includes(" (")) {
+                        lookupName = lookupName.substring(0, lookupName.lastIndexOf(" ("));
+                    }
+                    
+                    // Try finding by lookup name if direct match failed
+                    if (!feat) {
+                        feat = allFeats.find(f => f.name === lookupName);
+                    }
+                    
                     for (const f of allFeats) {
                         if (f._versions) {
                             const v = f._versions.find(v => v.name === featName);
@@ -2734,15 +2915,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (feat.name === "Magic Initiate") {
                         // Skip
                     } else {
-                        selectedFeatures.push(feat);
+                        selectedFeatures.push({ feature: feat, contextName: featName });
                     }
                 }
             }
         });
 
-        selectedFeatures.forEach(feat => {
+        selectedFeatures.forEach(item => {
+            const feat = item.feature;
+            const contextName = item.contextName;
+
             if (feat.additionalSpells) {
                 feat.additionalSpells.forEach(entry => {
+                    // Filter Logic: If entry has a name, contextName must include it
+                    if (entry.name) {
+                        const entryName = entry.name.toLowerCase();
+                        const ctx = contextName.toLowerCase();
+                        // Check if the context name contains the entry name (e.g. "Divinely Favored (Evil)" contains "evil")
+                        if (!ctx.includes(entryName)) {
+                            return; // Skip this entry
+                        }
+                    }
+
                     // Helper to extract spell names
                     const extract = (obj) => {
                         if (!obj) return;
@@ -2761,17 +2955,76 @@ document.addEventListener('DOMContentLoaded', () => {
                                     if (typeof v === 'string') {
                                         let name = v.split('#')[0].split('|')[0];
                                         name = name.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
-                                        spells.add(name);
+                                        
+                                        const div = document.createElement('div');
+                                        div.textContent = name;
+                                        div.style.padding = "4px 0";
+                                        div.style.borderBottom = "1px dashed var(--gold)";
+                                        div.style.color = "var(--red-dark)";
+                                        div.style.fontWeight = "bold";
+                                        container.appendChild(div);
+                                        hasContent = true;
                                     }
                                     else if (v.choose) {
                                         const criteria = formatChoose(v.choose);
-                                        // If criteria lists multiple classes (e.g. "Bard Spells, Cleric Spells..."), skip it
-                                        // This usually happens when the parent feat lists all possibilities.
-                                        // We only want to show this if it's a specific grant.
-                                        // For Magic Initiate, the parent has multiple entries in additionalSpells.
-                                        // We should probably only show them if we are sure.
-                                        // A simple fix for the user's issue: Don't show choices that are just "Level X Spells" without a class context if it's too broad.
-                                        if (!criteria.includes("Choose")) choices.push(`Choose ${v.count || 1} from: ${criteria}`);
+                                        const matches = getSpellsFromFilter(v.choose);
+                                        if (matches.length > 0) {
+                                            const div = document.createElement('div');
+                                            div.style.padding = "4px 0";
+                                            div.style.borderBottom = "1px dashed var(--gold)";
+                                            
+                                            const label = document.createElement('div');
+                                            label.style.fontSize = "0.85rem";
+                                            label.style.fontWeight = "bold";
+                                            label.style.marginBottom = "4px";
+                                            label.textContent = `Choose ${v.count || 1} from ${criteria}:`;
+                                            div.appendChild(label);
+
+                                            const count = v.count || 1;
+                                            for (let i = 0; i < count; i++) {
+                                                const select = document.createElement('select');
+                                                select.className = 'styled-select';
+                                                select.style.width = '100%';
+                                                select.style.marginBottom = '4px';
+                                                select.innerHTML = `<option value="">-- Select Spell --</option>` + 
+                                                                   matches.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+                                                
+                                                // Attempt to restore selection
+                                                const selectedMatch = matches.find(s => selectedSpells.has(s.name));
+                                                if (selectedMatch) {
+                                                    select.value = selectedMatch.name;
+                                                    select.dataset.prev = selectedMatch.name;
+                                                }
+
+                                                select.addEventListener('change', (e) => {
+                                                    const val = e.target.value;
+                                                    const prev = select.dataset.prev;
+                                                    if (prev) selectedSpells.delete(prev);
+                                                    
+                                                    if (val) {
+                                                        selectedSpells.add(val);
+                                                        select.dataset.prev = val;
+                                                    } else {
+                                                        delete select.dataset.prev;
+                                                    }
+                                                });
+
+                                                div.appendChild(select);
+                                            }
+                                            container.appendChild(div);
+                                            hasContent = true;
+                                        } else {
+                                            if (!criteria.includes("Choose")) {
+                                                const div = document.createElement('div');
+                                                div.innerHTML = `Choose ${v.count || 1} from: ${criteria}`;
+                                                div.style.padding = "4px 0";
+                                                div.style.borderBottom = "1px dashed var(--gold)";
+                                                div.style.color = "var(--ink)";
+                                                div.style.fontStyle = "italic";
+                                                container.appendChild(div);
+                                                hasContent = true;
+                                            }
+                                        }
                                     }
                                 });
                             } else if (typeof val === 'object') {
@@ -2803,32 +3056,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        if (spells.size === 0 && choices.length === 0) {
-            wrapper.style.display = 'none';
-            return;
-        }
-
-        wrapper.style.display = 'block';
-
-        choices.forEach(c => {
-            const div = document.createElement('div');
-            div.textContent = c;
-            div.style.padding = "4px 0";
-            div.style.borderBottom = "1px dashed var(--gold)";
-            div.style.color = "var(--ink)";
-            div.style.fontStyle = "italic";
-            container.appendChild(div);
-        });
-
-        spells.forEach(s => {
-            const div = document.createElement('div');
-            div.textContent = s;
-            div.style.padding = "4px 0";
-            div.style.borderBottom = "1px dashed var(--gold)";
-            div.style.color = "var(--red-dark)";
-            div.style.fontWeight = "bold";
-            container.appendChild(div);
-        });
+        wrapper.style.display = hasContent ? 'block' : 'none';
     }
 
     // Background Logic (Modal Picker)
@@ -2939,7 +3167,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (bg.entries) {
                 let desc = processEntries(bg.entries);
-                desc = desc.replace(/\{@\w+\s*([^}]+)?\}/g, (match, content) => content ? content.split('|')[0] : "");
+                desc = formatDescription(desc);
                 container.innerHTML = desc;
 
                 // Ability Score Adjustment Logic
@@ -3434,7 +3662,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 1. Render Main Description
             if (race.entries) {
                 let desc = processEntries(race.entries);
-                desc = desc.replace(/{@\w+\s*([^}]+)?}/g, (m, c) => c ? c.split('|')[0] : "");
+                desc = formatDescription(desc);
                 container.innerHTML = desc;
             }
 
@@ -3465,7 +3693,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectedSubrace = subraces.find(s => s.name === sName);
                     if (selectedSubrace && selectedSubrace.entries) {
                         let sDesc = processEntries(selectedSubrace.entries);
-                        sDesc = sDesc.replace(/{@\w+\s*([^}]+)?}/g, (m, c) => c ? c.split('|')[0] : "");
+                        sDesc = formatDescription(sDesc);
                         subDescDiv.innerHTML = `<strong>${sName}:</strong> ${sDesc}`;
                         renderClassFeatures(); // Re-check feat prerequisites (e.g. Drow High Magic)
                     } else {
