@@ -37,19 +37,14 @@ body.theme-wizard { --ink: #0e1826; --ink-light: #2c4463; --gold: #bdc3c7; --gol
 /* =========================================
    2. RESET & BASE STYLES
    ========================================= */
-html {
-  overscroll-behavior: none;
-}
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { overflow-y: auto; }
 body {
   font-family: "Crimson Text", serif;
   background: linear-gradient(135deg, #1a1410 0%, #2a2420 100%);
   color: var(--ink);
   min-height: 100vh;
   padding: 16px;
-  touch-action: pan-y;
-  overflow-x: hidden;
-  overscroll-behavior: none;
 }
 h1, h2, h3 { font-family: "Cinzel", serif; }
 input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
