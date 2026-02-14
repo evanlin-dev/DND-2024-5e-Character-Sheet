@@ -3431,7 +3431,26 @@ window.initQuickNav = function () {
 
     let html = "";
     navItems.forEach((item) => {
-      html += `
+      if (item.id === "features") {
+          html += `
+            <div class="nav-group-features">
+                <button class="nav-btn-custom" data-target="${item.id}">
+                    <svg viewBox="0 0 24 24" width="1.5em" height="1.5em" style="min-width:24px" fill="currentColor">
+                        ${item.icon}
+                    </svg>
+                    <span>${item.label}</span>
+                    <span class="arrow" style="margin-left:auto; font-size:0.8em;">▶</span>
+                </button>
+                <div class="nav-sub-items" style="display:none; flex-direction:column; gap:5px; padding-left:15px; border-left:2px solid var(--gold); margin-top:5px;">
+                    <button class="nav-btn-custom sub-item" data-target="class-features-sub" style="font-size:0.85rem; padding:8px;">Class</button>
+                    <button class="nav-btn-custom sub-item" data-target="race-features-sub" style="font-size:0.85rem; padding:8px;">Race</button>
+                    <button class="nav-btn-custom sub-item" data-target="bg-features-sub" style="font-size:0.85rem; padding:8px;">Background</button>
+                    <button class="nav-btn-custom sub-item" data-target="feats-sub" style="font-size:0.85rem; padding:8px;">Feats</button>
+                </div>
+            </div>
+          `;
+      } else {
+          html += `
                 <button class="nav-btn-custom" data-target="${item.id}">
                     <svg viewBox="0 0 24 24" width="1.5em" height="1.5em" style="min-width:24px" fill="currentColor">
                         ${item.icon}
@@ -3439,14 +3458,39 @@ window.initQuickNav = function () {
                     <span>${item.label}</span>
                 </button>
                `;
+      }
     });
 
     nav.innerHTML = html;
 
     nav.querySelectorAll(".nav-btn-custom").forEach((btn) => {
-      btn.onclick = () => {
+      btn.onclick = (e) => {
         const target = btn.dataset.target;
+        
+        if (target === "features") {
+            e.stopPropagation();
+            const sub = btn.nextElementSibling;
+            if (sub && sub.classList.contains('nav-sub-items')) {
+                const isHidden = sub.style.display === 'none';
+                sub.style.display = isHidden ? 'flex' : 'none';
+                const arrow = btn.querySelector('.arrow');
+                if (arrow) arrow.innerHTML = isHidden ? '▼' : '▶';
+            }
+            return;
+        }
+
         nav.classList.remove("visible");
+
+        const scrollToContainer = (id) => {
+            const el = document.getElementById(id);
+            if (el) {
+                const tabContent = el.closest('.tab-content');
+                if (tabContent) {
+                    window.switchTab(tabContent.id);
+                    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+                }
+            }
+        };
 
         // Logic to scroll to section or switch tab
         if (target === "stats") {
@@ -3473,10 +3517,14 @@ window.initQuickNav = function () {
           window.switchTab("equipment");
           const el = document.querySelector(".tabs");
           if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-        } else if (target === "features") {
-          window.switchTab("class-features");
-          const el = document.querySelector(".tabs");
-          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (target === "class-features-sub") {
+          scrollToContainer("classFeaturesContainer");
+        } else if (target === "race-features-sub") {
+          scrollToContainer("raceFeaturesContainer");
+        } else if (target === "bg-features-sub") {
+          scrollToContainer("backgroundFeaturesContainer");
+        } else if (target === "feats-sub") {
+          scrollToContainer("featsContainer");
         } else if (target === "notes") {
           window.switchTab("notes");
           const el = document.querySelector(".tabs");
