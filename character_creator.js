@@ -576,9 +576,10 @@ document.addEventListener('DOMContentLoaded', () => {
             div.className = 'creator-class-card';
             
             // Get metadata from data
-            const clsObj = validClasses.find(cl => cl.name === c && cl.source === 'XPHB') || 
-                           validClasses.find(cl => cl.name === c && cl.source === 'PHB') || 
-                           validClasses.find(cl => cl.name === c);
+            let clsObj = validClasses.find(cl => cl.name === c && cl.source === 'XPHB');
+            if (!clsObj && c === 'Artificer') clsObj = validClasses.find(cl => cl.name === c && cl.source === 'EFA');
+            if (!clsObj) clsObj = validClasses.find(cl => cl.name === c && cl.source === 'PHB');
+            if (!clsObj) clsObj = validClasses.find(cl => cl.name === c);
             
             let metaHtml = "";
             if (clsObj) {
@@ -607,7 +608,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const featureSources = new Set(allClassFeatures.filter(f => f.className === c).map(f => f.source));
                     sources.push(...featureSources);
                 }
-                if (sources.includes('XPHB')) currentClassSource = 'XPHB';
+                if (c === 'Artificer' && sources.includes('EFA')) currentClassSource = 'EFA';
+                else if (sources.includes('XPHB')) currentClassSource = 'XPHB';
                 else if (sources.includes('PHB')) currentClassSource = 'PHB';
                 else currentClassSource = sources[0] || 'PHB';
 
