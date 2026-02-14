@@ -162,6 +162,7 @@ const conditionIcons = {
 // State Variables
 const skillProficiency = {};
 const saveProficiency = {};
+const advantageState = { skills: {}, saves: {}, initiative: false };
 const deathSaves = {
   successes: [false, false, false],
   failures: [false, false, false],
@@ -2392,7 +2393,9 @@ window.renderResources = function() {
             <div class="resource-header">
                 <input type="text" class="resource-name" value="${res.name}" onchange="updateResourceName(${index}, this.value)" placeholder="Resource Name">
                 <div class="resource-controls">
-                    <input type="number" class="resource-max" value="${res.max}" onchange="updateResourceMax(${index}, this.value)" min="1" style="width:40px;">
+                    <button class="mini-btn" onclick="adjustResourceMax(${index}, -1)">-</button>
+                    <input type="number" class="resource-max" value="${res.max}" onchange="updateResourceMax(${index}, this.value)" min="1" style="width:40px; text-align:center;">
+                    <button class="mini-btn" onclick="adjustResourceMax(${index}, 1)">+</button>
                     <button class="delete-feature-btn" onclick="deleteResource(${index})">&times;</button>
                 </div>
             </div>
@@ -2416,6 +2419,16 @@ window.deleteResource = function(index) {
 };
 window.updateResourceName = function(index, val) { resourcesData[index].name = val; saveCharacter(); };
 window.updateResourceMax = function(index, val) { resourcesData[index].max = parseInt(val) || 1; if(resourcesData[index].used > resourcesData[index].max) resourcesData[index].used = resourcesData[index].max; renderResources(); saveCharacter(); };
+window.adjustResourceMax = function(index, delta) {
+    const res = resourcesData[index];
+    if (!res) return;
+    let newMax = (parseInt(res.max) || 0) + delta;
+    if (newMax < 1) newMax = 1;
+    res.max = newMax;
+    if (res.used > res.max) res.used = res.max;
+    renderResources();
+    saveCharacter();
+};
 window.toggleResourceSlot = function(index, slotIndex) {
     if (slotIndex < resourcesData[index].used) resourcesData[index].used = slotIndex;
     else resourcesData[index].used = slotIndex + 1;
@@ -2764,6 +2777,90 @@ window.setTheme = function (themeName) {
 };
 
 /* =========================================
+      ADVANTAGE TOGGLES
+      ========================================= */
+window.injectAdvantageToggles = function() {
+    // Skills
+    Object.keys(skillsMap).forEach(skill => {
+        const modEl = document.getElementById(`skillMod_${skill}`);
+        if (modEl && modEl.parentElement && !document.getElementById(`adv_skill_${skill}`)) {
+            const btn = document.createElement('button');
+            btn.id = `adv_skill_${skill}`;
+            btn.className = 'adv-toggle';
+            btn.innerText = 'A';
+            btn.title = 'Toggle Advantage';
+            btn.onclick = (e) => { e.stopPropagation(); toggleAdvantage('skills', skill); };
+            modEl.parentElement.insertBefore(btn, modEl);
+        }
+    });
+    
+    // Saves
+    abilities.forEach(ability => {
+        const modEl = document.getElementById(`saveMod_${ability}`);
+        if (modEl && modEl.parentElement && !document.getElementById(`adv_save_${ability}`)) {
+            const btn = document.createElement('button');
+            btn.id = `adv_save_${ability}`;
+            btn.className = 'adv-toggle';
+            btn.innerText = 'A';
+            btn.title = 'Toggle Advantage';
+            btn.onclick = (e) => { e.stopPropagation(); toggleAdvantage('saves', ability); };
+            modEl.parentElement.insertBefore(btn, modEl);
+        }
+    });
+
+    // Initiative
+    const initInput = document.getElementById('initiative');
+    if (initInput && initInput.parentElement && !document.getElementById('adv_init')) {
+        const btn = document.createElement('button');
+        btn.id = 'adv_init';
+        btn.className = 'adv-toggle';
+        btn.innerText = 'A';
+        btn.title = 'Toggle Advantage';
+        btn.style.position = 'absolute';
+        btn.style.right = '5px';
+        btn.style.top = '5px';
+        btn.onclick = (e) => { e.stopPropagation(); toggleAdvantage('initiative'); };
+        initInput.parentElement.style.position = 'relative';
+        initInput.parentElement.appendChild(btn);
+    }
+};
+
+window.toggleAdvantage = function(type, key) {
+    if (type === 'initiative') {
+        advantageState.initiative = !advantageState.initiative;
+    } else {
+        if (!advantageState[type]) advantageState[type] = {};
+        advantageState[type][key] = !advantageState[type][key];
+    }
+    updateAdvantageVisuals();
+    saveCharacter();
+};
+
+window.updateAdvantageVisuals = function() {
+    // Skills
+    Object.keys(skillsMap).forEach(skill => {
+        const btn = document.getElementById(`adv_skill_${skill}`);
+        if (btn) {
+            const active = advantageState.skills && advantageState.skills[skill];
+            btn.classList.toggle('active', !!active);
+        }
+    });
+    // Saves
+    abilities.forEach(ability => {
+        const btn = document.getElementById(`adv_save_${ability}`);
+        if (btn) {
+            const active = advantageState.saves && advantageState.saves[ability];
+            btn.classList.toggle('active', !!active);
+        }
+    });
+    // Initiative
+    const initBtn = document.getElementById('adv_init');
+    if (initBtn) {
+        initBtn.classList.toggle('active', !!advantageState.initiative);
+    }
+};
+
+/* =========================================
       5. PERSISTENCE (SAVE / LOAD)
       ========================================= */
 function getFeatureData(containerId) {
@@ -2916,6 +3013,7 @@ window.saveCharacter = function () {
     skillProficiency,
     saveProficiency,
     deathSaves,
+    advantageState,
     currentTheme: document.body.className,
     activeTab: document.querySelector(".tab-content.active")?.id,
   };
@@ -3583,6 +3681,9 @@ document.addEventListener("DOMContentLoaded", () => {
             ?.classList.toggle("checked", v),
         );
       }
+      if (data.advantageState) {
+        Object.assign(advantageState, data.advantageState);
+      }
       if (data.activeConditions) {
         document.getElementById("activeConditionsInput").value =
           data.activeConditions;
@@ -3712,6 +3813,8 @@ document.addEventListener("DOMContentLoaded", () => {
     updateHpBar();
     calculateWeight();
     renderWeaponTags();
+    injectAdvantageToggles();
+    updateAdvantageVisuals();
     resizeAllTextareas();
 
     // Check for pending level up
