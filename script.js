@@ -629,7 +629,10 @@ window.switchTab = function (tabName) {
     .querySelectorAll(".tab")
     .forEach((t) => t.classList.remove("active"));
   const content = document.getElementById(tabName);
-  if (content) content.classList.add("active");
+  if (content) {
+    content.classList.add("active");
+    content.querySelectorAll("textarea").forEach(autoResizeTextarea);
+  }
 
   // Find the tab button that controls this tab and activate it
   const tabBtn = document.querySelector(`.tab[onclick*="'${tabName}'"]`);
@@ -3134,6 +3137,7 @@ window.saveCharacter = function () {
     race: document.getElementById("race").value,
     background: document.getElementById("background").value,
     alignment: document.getElementById("alignment").value,
+    deity: document.getElementById("deity")?.value || "",
     xp: document.getElementById("experience").value,
     str: document.getElementById("str").value,
     dex: document.getElementById("dex").value,

@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let allBackgrounds = [];
     let selectedBackground = null;
     let allSpecies = [];
+    let allDeities = [];
+    let selectedDeity = null;
+    let selectedDeitySource = null;
     let allSubraces = [];
     let selectedSubrace = null;
     let selectedSpeciesOption = null;
@@ -406,6 +409,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (json.subrace && Array.isArray(json.subrace)) {
                             for (const s of json.subrace) allSubraces.push(s);
                         }
+                        if (json.deity && Array.isArray(json.deity)) {
+                            for (const d of json.deity) allDeities.push(d);
+                        }
 
                         // Load Items for Description Lookup
                         [json.item, json.items, json.baseitem, json.baseitems, json.magicvariant, json.magicvariants].forEach(arr => {
@@ -721,6 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
             step3.style.display = 'block';
             renderBackgroundOptions();
             renderSpeciesSection();
+            renderDeitySection();
             renderAbilityScoreSection();
             step3.scrollIntoView({ behavior: 'smooth' });
             nextBtn.textContent = "Review & Finish";
@@ -4006,6 +4013,101 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('creator-species-btn').onclick = window.openSpeciesPicker;
     }
 
+    function renderDeitySection() {
+        const step3 = document.getElementById('step-3-section');
+        if (document.getElementById('creator-deity-input')) return;
+
+        const container = document.createElement('div');
+        container.style.marginTop = "30px";
+        container.style.borderTop = "2px solid var(--gold)";
+        container.style.paddingTop = "20px";
+        
+        container.innerHTML = `
+            <h3 class="section-title" style="margin-top:0;">Select Deity</h3>
+            <div class="field" style="margin-bottom: 20px;">
+                <span class="field-label">Deity</span>
+                <input type="text" id="creator-deity-input" readonly placeholder="Select Deity" style="cursor:pointer; color:var(--red-dark); font-weight:bold;">
+            </div>
+            <div id="creator-deity-info" style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 4px; border: 1px dashed var(--gold);">
+                <em style="color:var(--ink-light);">Select a deity to view details...</em>
+            </div>
+        `;
+        
+        // Insert before Ability Scores if it exists, otherwise append
+        const abilitiesSection = document.getElementById('creator-abilities');
+        if (abilitiesSection) {
+            step3.insertBefore(container, abilitiesSection);
+        } else {
+            step3.appendChild(container);
+        }
+
+        document.getElementById('creator-deity-input').onclick = window.openDeityPicker;
+    }
+
+    window.openDeityPicker = function() {
+        let modal = document.getElementById('deityPickerModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'deityPickerModal';
+            modal.className = 'info-modal-overlay';
+            modal.innerHTML = `
+                <div class="info-modal-content" style="max-width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+                    <button class="close-modal-btn" onclick="document.getElementById('deityPickerModal').style.display='none'">&times;</button>
+                    <h3 class="info-modal-title" style="text-align: center">Select Deity</h3>
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="deitySearchInput" placeholder="Search deities..." style="border: 1px solid var(--gold); padding: 8px; border-radius: 4px; width: 100%;">
+                    </div>
+                    <div id="deityPickerList" class="checklist-grid" style="grid-template-columns: 1fr; flex: 1; overflow-y: auto; gap: 8px;"></div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            document.getElementById('deitySearchInput').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('#deityPickerList .checklist-item').forEach(item => {
+                    item.style.display = item.textContent.toLowerCase().includes(term) ? 'flex' : 'none';
+                });
+            });
+        }
+        
+        const list = document.getElementById('deityPickerList');
+        list.innerHTML = '';
+        
+        const sorted = allDeities.slice().sort((a, b) => {
+            const n = a.name.localeCompare(b.name);
+            if (n !== 0) return n;
+            return (a.source || "").localeCompare(b.source || "");
+        });
+        
+        sorted.forEach(d => {
+            const div = document.createElement('div');
+            div.className = 'checklist-item';
+            div.style.justifyContent = 'space-between';
+            
+            let meta = "";
+            if (d.pantheon) meta += d.pantheon + " ";
+            if (d.alignment) meta += ` (${d.alignment.join('')})`;
+            if (d.source) meta += `[${d.source}]`;
+
+            div.innerHTML = `<span>${d.name}</span><span style="font-size:0.75rem; color:var(--ink-light);">${meta.trim()}</span>`;
+            div.onclick = () => {
+                selectedDeity = d.name;
+                selectedDeitySource = d.source;
+                document.getElementById('creator-deity-input').value = `${d.name} [${d.source}]`;
+                renderDeityInfo();
+                modal.style.display = 'none';
+            };
+            list.appendChild(div);
+        });
+
+        if (sorted.length === 0) {
+            list.innerHTML = '<div style="padding:10px; text-align:center; color:var(--ink-light);">No deities found.</div>';
+        }
+
+        modal.style.display = 'flex';
+        document.getElementById('deitySearchInput').focus();
+    };
+
     window.openSpeciesPicker = function() {
         let modal = document.getElementById('speciesPickerModal');
         if (!modal) {
@@ -4210,6 +4312,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 choiceDiv.appendChild(optDescDiv);
                 container.appendChild(choiceDiv);
             }
+        }
+    }
+
+    function renderDeityInfo() {
+        const container = document.getElementById('creator-deity-info');
+        container.innerHTML = '';
+        if (!selectedDeity) return;
+
+        let deity = null;
+        if (selectedDeitySource) {
+            deity = allDeities.find(d => d.name === selectedDeity && d.source === selectedDeitySource);
+        }
+        if (!deity) {
+            const candidates = allDeities.filter(d => d.name === selectedDeity);
+            deity = candidates.find(d => d.source === 'XPHB') || candidates.find(d => d.source === 'PHB') || candidates[0];
+        }
+
+        if (deity && deity._copy && !deity.entries) {
+             const orig = allDeities.find(d => d.name === deity._copy.name && (d.source === deity._copy.source || !deity._copy.source));
+             if (orig) deity = { ...orig, ...deity, entries: orig.entries };
+        }
+
+        if (deity) {
+            let html = "";
+            if (deity.title) html += `<div><strong>Title:</strong> ${deity.title}</div>`;
+            if (deity.province) html += `<div><strong>Province:</strong> ${deity.province}</div>`;
+            if (deity.pantheon) html += `<div><strong>Pantheon:</strong> ${deity.pantheon}</div>`;
+            if (deity.alignment) html += `<div><strong>Alignment:</strong> ${deity.alignment.map(a => (a||"").toUpperCase()).join('')}</div>`;
+            if (deity.domains) html += `<div><strong>Domains:</strong> ${deity.domains.join(', ')}</div>`;
+            if (deity.symbol) html += `<div><strong>Symbol:</strong> ${deity.symbol}</div>`;
+            
+            if (deity.entries) {
+                let desc = processEntries(deity.entries);
+                desc = formatDescription(desc);
+                html += `<div style="margin-top:10px; border-top:1px dashed var(--gold); padding-top:10px;">${desc}</div>`;
+            }
+            
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = "No details available.";
         }
     }
 
@@ -4659,6 +4801,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div><strong>Subclass:</strong> ${selectedSubclass || "None"}</div>
                 <div><strong>Species:</strong> ${selectedSpecies || "None"}</div>
                 <div><strong>Background:</strong> ${selectedBackground || "None"}</div>
+                <div><strong>Deity:</strong> ${selectedDeity ? selectedDeity + (selectedDeitySource ? ` [${selectedDeitySource}]` : "") : "None"}</div>
                 <div style="margin-top:8px;">${scoreStr}</div>
                 ${spellsHtml}
             </div>
@@ -5529,6 +5672,60 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        let deityContent = "";
+        if (selectedDeity) {
+             let deity = null;
+             if (selectedDeitySource) {
+                 deity = allDeities.find(d => d.name === selectedDeity && d.source === selectedDeitySource);
+             }
+             if (!deity) {
+                 const candidates = allDeities.filter(d => d.name === selectedDeity);
+                 deity = candidates.find(d => d.source === 'XPHB') || candidates.find(d => d.source === 'PHB') || candidates[0];
+             }
+
+             if (deity) {
+                 if (deity._copy && !deity.entries) {
+                      const orig = allDeities.find(d => d.name === deity._copy.name && (d.source === deity._copy.source || !deity._copy.source));
+                      if (orig) deity = { ...orig, ...deity, entries: orig.entries };
+                 }
+                 
+                 let htmlDesc = "";
+                 if (deity.title) htmlDesc += `<strong>Title:</strong> ${deity.title}<br>`;
+                 if (deity.province) htmlDesc += `<strong>Province:</strong> ${deity.province}<br>`;
+                 if (deity.pantheon) htmlDesc += `<strong>Pantheon:</strong> ${deity.pantheon}<br>`;
+                 if (deity.alignment) htmlDesc += `<strong>Alignment:</strong> ${deity.alignment.map(a => (a||"").toUpperCase()).join('')}<br>`;
+                 if (deity.domains) htmlDesc += `<strong>Domains:</strong> ${deity.domains.join(', ')}<br>`;
+                 if (deity.symbol) htmlDesc += `<strong>Symbol:</strong> ${deity.symbol}<br>`;
+                 
+                 if (deity.entries) {
+                     htmlDesc += "<br>" + processEntries(deity.entries);
+                 }
+                 const cleanedHtml = formatDescription(htmlDesc);
+                 features.push({ title: `Deity: ${deity.name}`, desc: cleanedHtml, type: 'background' });
+
+                 // Add to Deity Field
+                 let plainNotes = `${deity.name}`;
+                 if (deity.source) plainNotes += ` [${deity.source}]`;
+                 plainNotes += "\n";
+
+                 plainNotes += cleanedHtml.replace(/<br\s*\/?>/gi, '\n')
+                                             .replace(/<\/div>/gi, '\n')
+                                             .replace(/<\/p>/gi, '\n')
+                                             .replace(/<li>/gi, '• ')
+                                             .replace(/<\/li>/gi, '\n')
+                                             .replace(/<[^>]+>/g, '')
+                                             .replace(/&nbsp;/g, ' ')
+                                             .replace(/&amp;/g, '&')
+                                             .replace(/&quot;/g, '"')
+                                             .replace(/&#39;/g, "'");
+                 deityContent = plainNotes.trim();
+             }
+        }
+
+        if (!deityContent && selectedDeity) {
+            deityContent = selectedDeity + (selectedDeitySource ? ` [${selectedDeitySource}]` : "");
+        }
+
         const charData = {
             charID: crypto.randomUUID(),
             charName: name,
@@ -5537,6 +5734,8 @@ document.addEventListener('DOMContentLoaded', () => {
             charSubclass: selectedSubclass || "",
             race: selectedSpecies || "",
             background: selectedBackground || "",
+            notes: "",
+            deity: deityContent,
             str: scores.Strength,
             dex: scores.Dexterity,
             con: scores.Constitution,
