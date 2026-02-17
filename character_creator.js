@@ -1852,10 +1852,14 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (charLevel >= 3) maxSpellLevel = 2;
             else maxSpellLevel = 1;
         } else if (halfCasters.includes(cls)) {
-            if (cls === "Artificer") {
-                maxSpellLevel = Math.ceil(charLevel / 2);
+            if (cls === "Artificer" || (currentClassSource === 'XPHB' && (cls === "Ranger" || cls === "Paladin"))) {
+                if (charLevel >= 17) maxSpellLevel = 5;
+                else if (charLevel >= 13) maxSpellLevel = 4;
+                else if (charLevel >= 9) maxSpellLevel = 3;
+                else if (charLevel >= 5) maxSpellLevel = 2;
+                else maxSpellLevel = 1;
             } else {
-                // Paladin/Ranger Progression
+                // Paladin/Ranger Progression (Legacy)
                 if (charLevel >= 17) maxSpellLevel = 5;
                 else if (charLevel >= 13) maxSpellLevel = 4;
                 else if (charLevel >= 9) maxSpellLevel = 3;
