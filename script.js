@@ -236,8 +236,8 @@ window.processEntries = function (entries) {
 
   if (entries.type === "refFeat") return `<strong>Feat:</strong> {@feat ${entries.feat}}`;
   if (entries.type === "refOptionalfeature") return `<strong>Option:</strong> {@optionalfeature ${entries.optionalfeature}}`;
-  if (entries.type === "refClassFeature") return `<strong>Feature:</strong> {@classFeature ${entries.classFeature}}`;
-  if (entries.type === "refSubclassFeature") return `<strong>Feature:</strong> {@subclassFeature ${entries.subclassFeature}}`;
+  if (entries.type === "refClassFeature") return "";
+  if (entries.type === "refSubclassFeature") return "";
   if (entries.type === "refSpell") return `<strong>Spell:</strong> {@spell ${entries.spell}}`;
 
   let text = "";
