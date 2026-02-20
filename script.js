@@ -1556,11 +1556,13 @@ let spellSearchPage = 1;
 let spellTargetContainer = "";
 let spellSearchFilterType = ""; // 'cantrip' or 'leveled'
 window.currentSpellMaxLevel = 9;
+let spellSearchOnSelect = null;
 
-window.openSpellSearch = async function (containerId, filterType, maxLevel = 9, preselectedClass = null) {
+window.openSpellSearch = async function (containerId, filterType, maxLevel = 9, preselectedClass = null, onSelect = null) {
   spellTargetContainer = containerId;
   spellSearchFilterType = filterType;
   window.currentSpellMaxLevel = maxLevel;
+  spellSearchOnSelect = onSelect;
   document.getElementById("spellSearchModal").style.display = "flex";
   document.getElementById("spellSearchInput").value = "";
   document.getElementById("spellSearchSort").value = "name-asc";
@@ -1976,8 +1978,12 @@ function renderSpellSearchPage() {
         description: desc,
       };
 
-      const target = (spell.level === 0 && spellTargetContainer === 'spellList') ? 'cantripList' : spellTargetContainer;
-      addSpellRow(target, spell.level, spellData);
+      if (spellSearchOnSelect) {
+          spellSearchOnSelect(spellData);
+      } else {
+          const target = (spell.level === 0 && spellTargetContainer === 'spellList') ? 'cantripList' : spellTargetContainer;
+          addSpellRow(target, spell.level, spellData);
+      }
       closeSpellSearch();
     };
     list.appendChild(div);
@@ -4324,11 +4330,28 @@ window.openLevelUpModal = async function(level) {
     
     newBtn.addEventListener('click', async () => {
         if (window.pendingLevelUpChanges) {
+            // Apply Subclass Change
+            if (window.pendingLevelUpChanges.subclass) {
+                const idx = window.pendingLevelUpChanges.classIndex !== undefined ? window.pendingLevelUpChanges.classIndex : 0;
+                if (window.characterClasses[idx]) {
+                    window.characterClasses[idx].subclass = window.pendingLevelUpChanges.subclass;
+                }
+                if (idx === 0) {
+                    const scInput = document.getElementById('charSubclass');
+                    if (scInput) scInput.value = window.pendingLevelUpChanges.subclass;
+                }
+            }
+
             for (const spellName of window.pendingLevelUpChanges.spells) {
                 await window.addSpellFromFeature(spellName, true);
             }
             for (const [key, choice] of window.pendingLevelUpChanges.choices) {
                 window.addFeatureItem("featsContainer", choice.name, choice.desc);
+            }
+            if (window.pendingLevelUpChanges.customSpells) {
+                window.pendingLevelUpChanges.customSpells.forEach(item => {
+                    window.addSpellRow(item.target, item.spellData.level, item.spellData);
+                });
             }
         }
         localStorage.removeItem('pendingLevelUp');
@@ -4336,6 +4359,10 @@ window.openLevelUpModal = async function(level) {
         const btn = document.getElementById('level-up-arrow-btn');
         if (btn) btn.remove();
         document.getElementById('levelUpModal').style.display = 'none';
+        
+        window.updateClassDisplay();
+        window.saveCharacter();
+        
         alert("Level up confirmed! Features and spells have been added.");
     });
     
@@ -4471,6 +4498,12 @@ window.renderLevelUpFeatures = async function(charClass, charSubclass, level, sh
         list.innerHTML = '<div style="text-align:center;">Loading features...</div>';
     }
 
+    if (window.pendingLevelUpChanges) {
+        // Clear auto-detected items to prevent stale data from previous renders
+        window.pendingLevelUpChanges.spells.clear();
+        window.pendingLevelUpChanges.choices.clear();
+    }
+
     try {
         const features = await fetchLevelUpFeatures(charClass, charSubclass, level, minLevel || level);
         
@@ -4488,6 +4521,84 @@ window.renderLevelUpFeatures = async function(charClass, charSubclass, level, sh
             msg.textContent = 'No features found for this level.';
             list.appendChild(msg);
             return;
+        }
+
+        // Subclass Selection (Level 3+)
+        let committedSubclass = "";
+        if (classIndex >= 0 && window.characterClasses[classIndex]) {
+            committedSubclass = window.characterClasses[classIndex].subclass;
+        } else if (window.characterClasses.length > 0) {
+             committedSubclass = window.characterClasses[0].subclass;
+        }
+
+        if (level >= 3 && !committedSubclass) {
+            const subDiv = document.createElement('div');
+            subDiv.style.marginBottom = '15px';
+            subDiv.style.padding = '10px';
+            subDiv.style.border = '2px dashed var(--gold)';
+            subDiv.style.background = 'var(--parchment)';
+            subDiv.innerHTML = `<div style="font-weight:bold; color:var(--red-dark); margin-bottom:5px;">Select Subclass</div>`;
+            
+            const select = document.createElement('select');
+            select.className = 'styled-select';
+            select.style.width = '100%';
+            select.innerHTML = '<option value="">-- Choose --</option>';
+            
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const data = await new Promise((resolve) => {
+                const req = store.get('currentData');
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve(null);
+            });
+            
+            if (data) {
+                const subclasses = [];
+                data.forEach(file => {
+                    if (!file.name.toLowerCase().endsWith('.json')) return;
+                    try {
+                        const json = JSON.parse(file.content);
+                        if (json.subclass) {
+                            json.subclass.forEach(sc => {
+                                if (sc.className === charClass) subclasses.push(sc);
+                            });
+                        }
+                    } catch (e) {}
+                });
+                
+                const unique = new Map();
+                subclasses.forEach(sc => {
+                    if (!unique.has(sc.name)) unique.set(sc.name, sc);
+                    else {
+                        const existing = unique.get(sc.name);
+                        if (sc.source === 'XPHB') unique.set(sc.name, sc);
+                        else if (sc.source === 'PHB' && existing.source !== 'XPHB') unique.set(sc.name, sc);
+                    }
+                });
+                
+                Array.from(unique.values()).sort((a,b) => a.name.localeCompare(b.name)).forEach(sc => {
+                    const opt = document.createElement('option');
+                    opt.value = sc.name;
+                    opt.textContent = sc.name + (sc.source ? ` [${sc.source}]` : "");
+                    select.appendChild(opt);
+                });
+            }
+            
+            select.value = charSubclass || "";
+
+            select.onchange = () => {
+                if (select.value) {
+                    if (window.pendingLevelUpChanges) {
+                        window.pendingLevelUpChanges.subclass = select.value;
+                        window.pendingLevelUpChanges.classIndex = classIndex;
+                    }
+                    window.renderLevelUpFeatures(charClass, select.value, level, showBackBtn, classIndex, minLevel, levelsAdded);
+                }
+            };
+            
+            subDiv.appendChild(select);
+            list.appendChild(subDiv);
         }
 
         // Check for Spellcasting to show "Add Spells" button
@@ -4539,10 +4650,69 @@ window.renderLevelUpFeatures = async function(charClass, charSubclass, level, sh
             if (charClass === "Fighter" && charSubclass && charSubclass.includes("Eldritch Knight")) filterClass = "Wizard";
             if (charClass === "Rogue" && charSubclass && charSubclass.includes("Arcane Trickster")) filterClass = "Wizard";
 
+            const selectedSpellsDiv = document.createElement('div');
+            selectedSpellsDiv.style.display = 'flex';
+            selectedSpellsDiv.style.flexWrap = 'wrap';
+            selectedSpellsDiv.style.gap = '5px';
+            selectedSpellsDiv.style.marginBottom = '15px';
+
+            const createRemovableTag = (spellData) => {
+                const tag = document.createElement('span');
+                tag.style.background = 'var(--parchment-dark)';
+                tag.style.border = '1px solid var(--gold)';
+                tag.style.padding = '2px 6px';
+                tag.style.borderRadius = '4px';
+                tag.style.fontSize = '0.8rem';
+                tag.style.display = 'inline-flex';
+                tag.style.alignItems = 'center';
+                tag.style.gap = '4px';
+                
+                tag.innerHTML = `<strong>${spellData.name}</strong>`;
+                
+                const removeBtn = document.createElement('span');
+                removeBtn.innerHTML = '&times;';
+                removeBtn.style.cursor = 'pointer';
+                removeBtn.style.color = 'var(--red)';
+                removeBtn.style.fontWeight = 'bold';
+                removeBtn.style.marginLeft = '2px';
+                removeBtn.title = 'Remove spell';
+                
+                removeBtn.onclick = () => {
+                    if (window.pendingLevelUpChanges && window.pendingLevelUpChanges.customSpells) {
+                        const idx = window.pendingLevelUpChanges.customSpells.findIndex(s => s.spellData.name === spellData.name);
+                        if (idx > -1) {
+                            window.pendingLevelUpChanges.customSpells.splice(idx, 1);
+                            tag.remove();
+                        }
+                    }
+                };
+                
+                tag.appendChild(removeBtn);
+                return tag;
+            };
+
+            if (window.pendingLevelUpChanges && window.pendingLevelUpChanges.customSpells) {
+                window.pendingLevelUpChanges.customSpells.forEach(item => {
+                    selectedSpellsDiv.appendChild(createRemovableTag(item.spellData));
+                });
+            }
+
             spellBtn.onclick = () => {
-                window.openSpellSearch('spellList', 'all', maxLevel, filterClass);
+                window.openSpellSearch('spellList', 'all', maxLevel, filterClass, (spellData) => {
+                    const target = (spellData.level === 0) ? 'cantripList' : 'spellList';
+                    
+                    if (window.pendingLevelUpChanges) {
+                        if (!window.pendingLevelUpChanges.customSpells) window.pendingLevelUpChanges.customSpells = [];
+                        window.pendingLevelUpChanges.customSpells.push({ target, spellData });
+                    } else {
+                        window.addSpellRow(target, spellData.level, spellData);
+                    }
+                    
+                    selectedSpellsDiv.appendChild(createRemovableTag(spellData));
+                });
             };
             list.appendChild(spellBtn);
+            list.appendChild(selectedSpellsDiv);
         }
         
         for (const f of features) {
@@ -4818,7 +4988,6 @@ window.addSpellFromFeature = async function(spellName, silent = false) {
             };
             
             window.addSpellRow('preparedSpellsList', foundSpell.level, spellData);
-            alert(`Added ${foundSpell.name} to Prepared Spells.`);
             if (!silent) alert(`Added ${foundSpell.name} to Prepared Spells.`);
         } else {
             alert("Spell data not found.");
