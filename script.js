@@ -1212,6 +1212,7 @@ async function checkDataUploadStatus() {
       const btnItems = document.getElementById("btn-search-items-zip");
       const btnCantrips = document.getElementById("btn-search-cantrips-zip");
       const btnSpells = document.getElementById("btn-search-spells-zip");
+      const btnClassTable = document.getElementById("btn-view-class-table");
       const hasData = req.result && req.result.length > 0;
 
       // Inject Feat Search Button if missing
@@ -1272,12 +1273,14 @@ async function checkDataUploadStatus() {
         if (btnSpells) btnSpells.style.display = "inline-block";
         if (btnFeats) btnFeats.style.display = "inline-block";
         if (btnLangs) btnLangs.style.display = "inline-block";
+        if (btnClassTable) btnClassTable.style.display = "inline-flex";
       } else {
         if (btnItems) btnItems.style.display = "none";
         if (btnCantrips) btnCantrips.style.display = "none";
         if (btnSpells) btnSpells.style.display = "none";
         if (btnFeats) btnFeats.style.display = "none";
         if (btnLangs) btnLangs.style.display = "none";
+        if (btnClassTable) btnClassTable.style.display = "none";
       }
 
       // Toggle Weapon Proficiency Input Mode
@@ -4429,7 +4432,11 @@ window.renderLevelUpFeatures = async function(charClass, charSubclass, level, sh
     
     const modalTitle = document.querySelector('#levelUpModal .info-modal-title');
     if (modalTitle) {
-        modalTitle.innerHTML = `Level ${level} Features <button class="skill-info-btn" style="margin-left:10px; vertical-align: middle;" onclick="window.renderClassTableFor('${charClass}')" title="View Class Table">?</button>`;
+        let helpBtnHtml = '';
+        if (window.isDataAvailable) {
+            helpBtnHtml = `<button class="skill-info-btn" style="margin-left:10px; vertical-align: middle;" onclick="window.renderClassTableFor('${charClass.replace(/'/g, "\\'")}')" title="View Class Table">?</button>`;
+        }
+        modalTitle.innerHTML = `Level ${level} Features ${helpBtnHtml}`;
     }
 
     if (showBackBtn) {
@@ -4957,9 +4964,11 @@ window.injectClassManagerButton = function() {
     btn.onclick = window.openClassManagerModal;
     
     const helpBtn = document.createElement('button');
+    helpBtn.id = 'btn-view-class-table';
     helpBtn.innerHTML = '?';
     helpBtn.title = "View Class Table";
     helpBtn.className = "skill-info-btn";
+    helpBtn.style.display = 'none'; // Hidden by default, shown if data exists
     helpBtn.style.marginLeft = "5px";
     helpBtn.onclick = (e) => {
         e.preventDefault();
@@ -5158,6 +5167,7 @@ window.openClassTableModal = async function() {
 
 async function renderClassTableFor(className) {
     if (!className) return;
+    className = className.trim();
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
@@ -5175,9 +5185,21 @@ async function renderClassTableFor(className) {
         try {
             const json = JSON.parse(file.content);
             if (json.class) {
-                const found = json.class.find(c => c.name.toLowerCase() === className.toLowerCase());
-                if (found) {
-                    if (!classObj || found.source === 'XPHB') classObj = found;
+                const matches = json.class.filter(c => c.name.toLowerCase() === className.toLowerCase());
+                for (const found of matches) {
+                    const hasTable = !!found.classTableGroups;
+                    const currentHasTable = classObj && !!classObj.classTableGroups;
+
+                    if (!classObj) {
+                        classObj = found;
+                    } else {
+                        if (hasTable && !currentHasTable) {
+                            classObj = found;
+                        } else if (hasTable === currentHasTable) {
+                            if (found.source === 'XPHB') classObj = found;
+                            else if (found.source === 'PHB' && classObj.source !== 'XPHB') classObj = found;
+                        }
+                    }
                 }
             }
         } catch (e) {}
