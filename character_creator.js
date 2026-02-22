@@ -5257,11 +5257,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if ((!feat.entries || (feat.entries.length === 1 && typeof feat.entries[0] === 'string')) && feat._copy) {
                         const copyName = feat._copy.name;
                         const copySource = feat._copy.source || feat.source;
-                        const original = allFeats.find(f => f.name === copyName && (f.source === copySource || !feat._copy.source) && f.entries);
-                        if (original && original.entries) feat = { ...original, ...feat, entries: original.entries };
+                        const original = allFeats.find(f => f.name === copyName && (f.source === copySource || !feat._copy.source) && (f.entries || f.entry));
+                        if (original) feat = { ...original, ...feat, entries: original.entries || original.entry };
                     }
                     let desc = "";
-                    if (feat.entries) desc = processEntries(feat.entries);
+                    if (feat.entries || feat.entry) desc = processEntries(feat.entries || feat.entry);
                     else if (feat.description) desc = feat.description;
                     else if (feat.desc) desc = Array.isArray(feat.desc) ? processEntries(feat.desc) : feat.desc;
                     const cleanedDesc = cleanText(desc);
@@ -5280,16 +5280,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     return; // Skip optional feature check below
                 }
                 const candidates = allOptionalFeatures.filter(f => f.name === name);
-                let feat = candidates.find(f => f.source === 'XPHB') || candidates.find(f => f.source === 'PHB') || candidates[0];
+                
+                // Try to find XPHB first
+                let feat = candidates.find(f => f.source === 'XPHB');
+                
+                // If found but empty (no text), try to find a version WITH text (e.g. PHB)
+                if (feat && !feat.entries && !feat.entry && !feat.description && !feat._copy) {
+                    const better = candidates.find(f => f.entries || f.entry || f.description || f._copy);
+                    if (better) feat = better;
+                }
+                
+                if (!feat) feat = candidates.find(f => f.source === 'PHB') || candidates[0];
+                
                 if (feat) {
                     if ((!feat.entries || (feat.entries.length === 1 && typeof feat.entries[0] === 'string')) && feat._copy) {
                         const copyName = feat._copy.name;
                         const copySource = feat._copy.source || feat.source;
-                        const original = allOptionalFeatures.find(o => o.name === copyName && (o.source === copySource || !feat._copy.source) && o.entries);
-                        if (original && original.entries) feat = { ...original, ...feat, entries: original.entries };
+                        const original = allOptionalFeatures.find(o => o.name === copyName && (o.source === copySource || !feat._copy.source) && (o.entries || o.entry));
+                        if (original) feat = { ...original, ...feat, entries: original.entries || original.entry };
                     }
                     let desc = "";
-                    if (feat.entries) desc = processEntries(feat.entries);
+                    if (feat.entries || feat.entry) desc = processEntries(feat.entries || feat.entry);
                     else if (feat.description) desc = feat.description;
                     else if (feat.desc) desc = Array.isArray(feat.desc) ? processEntries(feat.desc) : feat.desc;
                     const title = feat.level ? `Lvl ${feat.level}: ${feat.name}` : feat.name;
@@ -5381,6 +5392,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         }
+
+        console.log("[Character Creator] Final Features List:", features);
 
         // --- Proficiencies, Spellcasting, and Details ---
         // (Variables initialized at top of function)
