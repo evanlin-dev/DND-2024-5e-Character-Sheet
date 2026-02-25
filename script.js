@@ -318,7 +318,8 @@ function resizeAllTextareas() {
 
 // Update Logic
 window.updateModifiers = function () {
-  const profBonus = parseInt(document.getElementById("profBonus").value) || 0;
+  const profBonusStr = document.getElementById("profBonus").value;
+  const profBonus = parseInt(profBonusStr.replace(/[^0-9-]/g, '')) || 0;
   abilities.forEach((ability) => {
     const score = parseInt(document.getElementById(ability).value) || 10;
     const mod = calcMod(score);
@@ -347,7 +348,8 @@ window.updateAllWeaponStats = function () {
   const dex = parseInt(document.getElementById("dex").value) || 10;
   const strMod = Math.floor((str - 10) / 2);
   const dexMod = Math.floor((dex - 10) / 2);
-  const profBonus = parseInt(document.getElementById("profBonus").value) || 2;
+  const profBonusStr = document.getElementById("profBonus").value;
+  const profBonus = parseInt(profBonusStr.replace(/[^0-9-]/g, '')) || 2;
   const profString = document.getElementById("weaponProfs").value || "";
 
   document.querySelectorAll(".weapon-item").forEach((row) => {
@@ -398,7 +400,8 @@ function updateSpellDC() {
 
   const abilityScore = parseInt(abilityInput.value) || 10;
   const abilityMod = calcMod(abilityScore);
-  const profBonus = parseInt(document.getElementById("profBonus").value) || 0;
+  const profBonusStr = document.getElementById("profBonus").value;
+  const profBonus = parseInt(profBonusStr.replace(/[^0-9-]/g, '')) || 0;
 
   const dcEl = document.getElementById("spellDC");
   if (dcEl) dcEl.value = 8 + profBonus + abilityMod;
@@ -2579,7 +2582,8 @@ window.selectWeaponFromPicker = function (weaponName) {
   const dex = parseInt(document.getElementById("dex").value) || 10;
   const strMod = Math.floor((str - 10) / 2);
   const dexMod = Math.floor((dex - 10) / 2);
-  const profBonus = parseInt(document.getElementById("profBonus").value) || 2;
+  const profBonusStr = document.getElementById("profBonus").value;
+  const profBonus = parseInt(profBonusStr.replace(/[^0-9-]/g, '')) || 2;
   let abilityMod = strMod;
   if (weaponData.props.includes("Finesse")) {
     abilityMod = Math.max(strMod, dexMod);
@@ -4210,6 +4214,15 @@ document.addEventListener("DOMContentLoaded", () => {
     input.type = "hidden";
     input.id = "charID";
     document.body.appendChild(input);
+  }
+
+  // Force profBonus to text to allow custom strings like "+3" or "Level 5"
+  const pbInput = document.getElementById("profBonus");
+  if (pbInput) {
+      pbInput.type = "text";
+      pbInput.style.textAlign = "center";
+      pbInput.style.fontSize = "1.3rem";
+      pbInput.style.fontWeight = "600";
   }
 
   window.isInitializing = true;
